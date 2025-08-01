@@ -32,9 +32,5 @@ router.post('/ping', express.json(), (req, res) => {
   res.status(200).send('Ping received');
 });
 
-// GET /pings – retrieve all GPS pings
-router.get('/pings', (req, res) => {
-  res.json(gpsPings);
-});
 
 module.exports = router;
