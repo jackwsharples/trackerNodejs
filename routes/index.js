@@ -4,7 +4,7 @@ const router = express.Router();
 
 // Serve a simple homepage
 router.get('/', (req, res) => {
-  res.sendFile(path.resolve('views/index.html'));
+  res.sendFile(path.resolve('views/404.html'));
 });
 
 // Receive GPS pings
