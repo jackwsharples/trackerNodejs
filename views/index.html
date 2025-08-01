@@ -1,40 +1,61 @@
-<script
-  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-Ysa+g3EACr0qhvxPbKyg2Mf0Nd78Q02T+1pgiwZf2z0="
-  crossorigin=""
-></script>
-<script>
-  const map = L.map('map').setView([36.2128, -81.6741], 13); // Boone, NC
-
-  // Add map tiles
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  }).addTo(map);
-
-  let markers = [];
-
-  async function loadPings() {
-    try {
-      const res = await fetch('/api/pings'); // ← fixed URL
-      const pings = await res.json();
-
-      // Remove old markers
-      markers.forEach(marker => map.removeLayer(marker));
-      markers = [];
-
-      // Add new ones
-      pings.forEach(({ lat, lon, timestamp }) => {
-        const marker = L.marker([lat, lon])
-          .addTo(map)
-          .bindPopup(`📍<br>Lat: ${lat}<br>Lon: ${lon}<br>${new Date(timestamp).toLocaleString()}`);
-        markers.push(marker);
-      });
-    } catch (err) {
-      console.error('Failed to load pings:', err);
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>GPS Tracker</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-sA+e2x8bFZ8O0gd2t8uW5gMGkp63YQ0Yjw5Hy1Tz0u8="
+    crossorigin=""
+  />
+  <style>
+    #map {
+      height: 90vh;
+      width: 100%;
     }
-  }
+    body {
+      font-family: Arial;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center;">📍 Live GPS Pings</h1>
+  <div id="map"></div>
 
-  loadPings(); // Load once
-  setInterval(loadPings, 5000); // Refresh every 5s
-</script>
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-Ysa+g3EACr0qhvxPbKyg2Mf0Nd78Q02T+1pgiwZf2z0="
+    crossorigin=""
+  ></script>
+  <script>
+    const map = L.map('map').setView([36.2128, -81.6741], 13); // Default center (Boone, NC)
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    // Fetch pings and place markers
+    async function loadPings() {
+      try {
+        const res = await fetch('/pings');
+        const pings = await res.json();
+
+        pings.forEach((ping) => {
+          const { lat, lon, timestamp } = ping;
+          L.marker([lat, lon])
+            .addTo(map)
+            .bindPopup(`Lat: ${lat}<br>Lon: ${lon}<br>${new Date(timestamp).toLocaleString()}`);
+        });
+      } catch (err) {
+        console.error('Failed to load pings:', err);
+      }
+    }
+
+    loadPings();
+  </script>
+</body>
+</html>
