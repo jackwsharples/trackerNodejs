@@ -7,7 +7,7 @@ const gpsPings = [];
 
 // Serve a simple homepage
 router.get('/', (req, res) => {
-  res.sendFile(path.resolve('views/index.html'));
+  res.sendFile(path.join(__dirname, '../views/index.html'));
 });
 
 
