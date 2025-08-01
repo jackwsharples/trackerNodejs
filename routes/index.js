@@ -2,30 +2,35 @@ const express = require('express');
 const path = require('path');
 const router = express.Router();
 
-const pings = []; // keep this outside to persist
+//In mem temp storage
+const gpsPings = [];
 
+// Serve a simple homepage
 router.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../views/index.html'));
+  res.sendFile(path.resolve('views/index.html'));
 });
 
+
+
+// Receive GPS pings
 router.post('/ping', express.json(), (req, res) => {
-  const { lat, lon, timestamp } = req.body;
-  if (!lat || !lon) {
-    return res.status(400).send('Missing coordinates');
+  const { lat, lon, timestamp } = req.body || {};
+
+  if (lat === undefined || lon === undefined || timestamp === undefined) {
+    console.warn('Bad ping data received:', req.body);
+    return res.status(400).send('Missing required fields');
   }
 
+  const ping = { lat, lon, timestamp };
+  gpsPings.push(ping);
+
   console.log('Received ping:', { lat, lon, timestamp });
-  pings.push({ lat, lon, timestamp });
   res.status(200).send('Ping received');
 });
 
-router.get('/api/pings', (req, res) => {
-  try {
-    res.json(pings);
-  } catch (err) {
-    console.error('Error returning pings:', err);
-    res.status(500).send('Server error');
-  }
+// GET /pings – retrieve all GPS pings
+router.get('/pings', (req, res) => {
+  res.json(gpsPings);
 });
 
 module.exports = router;
