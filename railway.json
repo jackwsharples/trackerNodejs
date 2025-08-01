@@ -1,0 +1,10 @@
+{
+  "build": {
+    "env": {
+      "PORT": "8080"
+    }
+  },
+  "deploy": {
+    "startCommand": "node app.js"
+  }
+}
