@@ -7,7 +7,7 @@ const gpsPings = [];
 
 // Serve a simple homepage
 router.get('/', (req, res) => {
-  res.sendFile(path.resolve('views/404.html'));
+  res.sendFile(path.resolve('views/index.html'));
 });
 
 // Receive GPS pings
