@@ -10,6 +10,12 @@ router.get('/', (req, res) => {
   res.sendFile(path.resolve('views/index.html'));
 });
 
+
+// API to get pings
+router.get('/api/pings', (req, res) => {
+  res.json(gpsPings);
+});
+
 // Receive GPS pings
 router.post('/ping', express.json(), (req, res) => {
   const { lat, lon, timestamp } = req.body || {};
