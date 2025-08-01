@@ -10,19 +10,42 @@
     crossorigin=""
   />
   <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f4f4;
+    }
+
+    header {
+      background-color: #282c34;
+      color: #fff;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.8rem;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
     #map {
       height: 90vh;
-      width: 100%;
+      width: 90%;
+      margin: 1rem auto;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
-    body {
-      font-family: Arial;
-      margin: 0;
+
+    footer {
+      text-align: center;
+      padding: 0.8rem;
+      color: #777;
+      font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
-  <h1 style="text-align: center;">📍 Live GPS Pings</h1>
+  <header>📍 Live GPS Tracker</header>
   <div id="map"></div>
+  <footer>Powered by OpenStreetMap + Leaflet.js</footer>
 
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -30,25 +53,22 @@
     crossorigin=""
   ></script>
   <script>
-    const map = L.map('map').setView([36.2128, -81.6741], 13); // Default center (Boone, NC)
+    const map = L.map('map').setView([36.2128, -81.6741], 13);
 
-    // Add OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
-    // Fetch pings and place markers
     async function loadPings() {
       try {
         const res = await fetch('/pings');
         const pings = await res.json();
 
-        pings.forEach((ping) => {
-          const { lat, lon, timestamp } = ping;
+        pings.forEach(({ lat, lon, timestamp }) => {
           L.marker([lat, lon])
             .addTo(map)
-            .bindPopup(`Lat: ${lat}<br>Lon: ${lon}<br>${new Date(timestamp).toLocaleString()}`);
+            .bindPopup(`📍 <strong>${lat.toFixed(5)}, ${lon.toFixed(5)}</strong><br>${new Date(timestamp).toLocaleString()}`);
         });
       } catch (err) {
         console.error('Failed to load pings:', err);
