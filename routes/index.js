@@ -8,12 +8,17 @@ router.get('/', (req, res) => {
 });
 
 // Receive GPS pings
-router.post('/ping', (req, res) => {
-  const { lat, lon, timestamp } = req.body;
-  console.log('Received ping:', { lat, lon, timestamp });
+router.post('/ping', express.json(), (req, res) => {
+  const { lat, lon, timestamp } = req.body || {};
 
-  // TODO: Save to memory/database (for now, maybe just an in-memory array)
+  if (lat === undefined || lon === undefined || timestamp === undefined) {
+    console.warn('Bad ping data received:', req.body);
+    return res.status(400).send('Missing required fields');
+  }
+
+  console.log('Received ping:', { lat, lon, timestamp });
   res.status(200).send('Ping received');
 });
+
 
 module.exports = router;
