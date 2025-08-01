@@ -8,7 +8,7 @@ router.get('/', (req, res) => {
 });
 
 // Receive GPS pings
-router.post('/ping', express.json(), (req, res) => {
+router.post('/ping', (req, res) => {
   const { lat, lon, timestamp } = req.body;
   console.log('Received ping:', { lat, lon, timestamp });
 
