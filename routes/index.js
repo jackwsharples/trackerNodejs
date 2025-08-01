@@ -7,7 +7,13 @@ const gpsPings = [];
 
 // Serve a simple homepage
 router.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../views/index.html'));
+  try {
+    const filePath = path.resolve(__dirname, '../views/index.html');
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('Error serving index.html:', err);
+    res.status(500).send('Internal Server Error');
+  }
 });
 
 
