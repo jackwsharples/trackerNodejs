@@ -2,9 +2,18 @@ const express = require('express');
 const path = require('path');
 const router = express.Router();
 
-// Serve the index.html file for the root route
+// Serve a simple homepage
 router.get('/', (req, res) => {
-  res.send('Hello Test!');
+  res.sendFile(path.join(__dirname, '../views/index.html'));
+});
+
+// Receive GPS pings
+router.post('/ping', express.json(), (req, res) => {
+  const { lat, lon, timestamp } = req.body;
+  console.log('Received ping:', { lat, lon, timestamp });
+
+  // TODO: Save to memory/database (for now, maybe just an in-memory array)
+  res.status(200).send('Ping received');
 });
 
 module.exports = router;
