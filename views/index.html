@@ -61,21 +61,40 @@
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
+    const markers = [] ;
+    let pathLine = null;
+
     // Fetch pings and place markers
     async function loadPings() {
       try {
         const res = await fetch('/pings');
         const pings = await res.json();
 
+        //Clear existing path lines
+        if(pathLine){
+          map.removeLayer(pathLine);
+          pathLine = null;
+        }
+
+        const pathCoords = [];
         pings.forEach(({ lat, lon, timestamp }) => {
-          L.marker([lat, lon])
-            .addTo(map)
-            .bindPopup(`📍 <strong>${lat.toFixed(5)}, ${lon.toFixed(5)}</strong><br>${new Date(timestamp).toLocaleString()}`);
-        });
-      } catch (err) {
-        console.error('Failed to load pings:', err);
+        const marker = L.marker([lat, lon])
+          .addTo(map)
+          .bindPopup(`📍 <strong>${lat.toFixed(5)}, ${lon.toFixed(5)}</strong><br>${new Date(timestamp).toLocaleString()}`);
+        
+        markers.push(marker);
+        pathCoords.push([lat, lon]);
+      });
+
+      // Add polyline (if at least 2 points)
+      if (pathCoords.length >= 2) {
+        pathLine = L.polyline(pathCoords, { color: 'blue' }).addTo(map);
       }
+
+    } catch (err) {
+      console.error('Failed to load pings:', err);
     }
+  }
 
     loadPings();
     setInterval(loadPings, 10000);
