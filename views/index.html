@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <title>GPS Tracker</title>
+  <!-- ✅ Fixed Leaflet CSS (integrity removed) -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-sA+e2x8bFZ8O0gd2t8uW5gMGkp63YQ0Yjw5Hy1Tz0u8="
-    crossorigin=""
   />
   <style>
     body {
@@ -47,19 +46,22 @@
   <div id="map"></div>
   <footer>Powered by OpenStreetMap + Leaflet.js</footer>
 
+  <!-- ✅ Fixed Leaflet JS (integrity removed) -->
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-Ysa+g3EACr0qhvxPbKyg2Mf0Nd78Q02T+1pgiwZf2z0="
-    crossorigin=""
   ></script>
+
   <script>
+    // Initialize map
     const map = L.map('map').setView([36.2128, -81.6741], 13);
 
+    // Add OpenStreetMap tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
+    // Fetch pings and place markers
     async function loadPings() {
       try {
         const res = await fetch('/pings');
