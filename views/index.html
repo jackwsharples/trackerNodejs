@@ -100,7 +100,7 @@
     let pathLine = null;
 
     function clearMap(){
-      marker.forEach(marker => map.removeLayer(marker));
+      markers.forEach(marker => map.removeLayer(marker));
       markers.length = 0;
       if(pathLine){
         map.removeLayer(pathLine);
