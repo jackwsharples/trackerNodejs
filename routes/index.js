@@ -19,24 +19,38 @@ router.get('/', (req, res) => {
 
 
 // Receive GPS pings
-router.post('/ping', express.json(), (req, res) => {
-  const { lat, lon, timestamp } = req.body || {};
+router.post('/ping', express.urlencoded({ extended: true }), express.json(), (req, res) => {
+    const { lat, lon, timestamp, imei } = req.body || {};
 
-  if (lat === undefined || lon === undefined || timestamp === undefined) {
+  // Handle both manual JSON and tracker formats
+  if (!lat || !lon) {
     console.warn('Bad ping data received:', req.body);
     return res.status(400).send('Missing required fields');
   }
 
-  const ping = { lat, lon, timestamp };
+  const ping = {
+    lat: parseFloat(lat),
+    lon: parseFloat(lon),
+    timestamp: timestamp || new Date().toISOString(),
+    imei: imei || 'manual'
+  };
+
   gpsPings.push(ping);
 
-  console.log('Received ping:', { lat, lon, timestamp });
+  console.log('Received ping:', ping);
   res.status(200).send('Ping received');
+
 });
 
 // GET /pings – retrieve all GPS pings
 router.get('/pings', (req, res) => {
   res.json(gpsPings);
 });
+
+router.all('*', (req, res) => {
+  console.log('Wildcard hit:', req.method, req.path, req.body || req.query);
+  res.send('Received something');
+});
+
 
 module.exports = router;
