@@ -25,12 +25,42 @@
       letter-spacing: 1px;
     }
 
+    .controls {
+      text-align: center;
+      margin: 1rem;
+    }
+
     #map {
       height: 90vh;
       width: 90%;
       margin: 1rem auto;
       border-radius: 10px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      background-color: #007bff;
+      color: white;
+      border:none;
+      border-radius: 5px;
+      margin-right: 1rem;
+      cursor: pointer;
+    }
+
+    button:hover{
+      background-color: #074485;
+    }
+
+    a.view-json {
+      font-size: 1rem;
+      color:#007bff;
+      text-decoration: none;
+    }
+
+    a.view-json:hover{
+      text-decoration: underline;
     }
 
     footer {
@@ -42,7 +72,12 @@
   </style>
 </head>
 <body>
-  <header>📍 Live GPS Tracker</header>
+  <header>📍 Live GPS Tracker
+    <div class="controls">
+      <button onclick="clearMap()">Clear Map</button>
+      <a class="view-json" href="/pings" target="_blank">View Raw Pings JSON</a>
+    </div>
+  </header>
   <div id="map"></div>
   <footer>Powered by OpenStreetMap + Leaflet.js</footer>
 
@@ -64,6 +99,15 @@
     const markers = [] ;
     let pathLine = null;
 
+    function clearMap(){
+      marker.forEach(marker => map.removeLayer(marker));
+      markers.length = 0;
+      if(pathLine){
+        map.removeLayer(pathLine);
+        pathLine = null;
+      }
+    }
+
     // Fetch pings and place markers
     async function loadPings() {
       try {
@@ -71,10 +115,7 @@
         const pings = await res.json();
 
         //Clear existing path lines
-        if(pathLine){
-          map.removeLayer(pathLine);
-          pathLine = null;
-        }
+        clearMap();
 
         const pathCoords = [];
         pings.forEach(({ lat, lon, timestamp }) => {
