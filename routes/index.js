@@ -19,7 +19,8 @@ router.get('/', (req, res) => {
 
 
 // Receive GPS pings
-router.post('/ping', express.urlencoded({ extended: true }), express.json(), (req, res) => {
+router.post('/ping', express.json(), (req, res) => {
+
     const { lat, lon, timestamp, imei } = req.body || {};
 
   // Handle both manual JSON and tracker formats
