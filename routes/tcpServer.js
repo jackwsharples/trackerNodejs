@@ -1,5 +1,5 @@
 const net = require('net');
-const { gpsPings } = require('./routes/index');
+const { gpsPings } = require('./index');
 
 const TCP_PORT = 9000; // Use Railway TCP proxy port here
 
