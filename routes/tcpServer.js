@@ -1,7 +1,7 @@
 const net = require('net');
 const { gpsPings } = require('./index');
 
-const TCP_PORT = 6000; // Use Railway TCP proxy port here
+const TCP_PORT = 7000; // Use Railway TCP proxy port here
 
 const tcpServer = net.createServer((socket) => {
   console.log('📡 Tracker connected:', socket.remoteAddress);
