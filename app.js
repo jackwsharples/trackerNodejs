@@ -1,29 +1,22 @@
 const express = require('express');
 const path = require('path');
-const indexRouter = require('./routes/index');
-
+const { router } = require('./routes/index');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Start the TCP server
+require('./tcpServer'); // <-- This runs it on startup
 
+// JSON parsing and static files
 app.use(express.json());
-// Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/', router);
 
-// Use the router for handling routes
-app.use('/', indexRouter);
-
-// Catch-all route for handling 404 errors
-app.use((req, res, next) => {
-    res.status(404).sendFile(path.join(__dirname, 'views', '404.html'));
-  });
-
-  console.log('Serving static files from:', path.join(__dirname, 'public'));
-console.log('Expecting index.html at:', path.resolve(__dirname, 'views/index.html'));
-
+// 404 handler
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'views', '404.html'));
+});
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}/`);
-}).on('error', (err) => {
-  console.error('Server failed to start:', err);
+  console.log(`🌐 HTTP server running at http://localhost:${PORT}/`);
 });
