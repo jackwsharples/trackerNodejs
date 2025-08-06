@@ -14,7 +14,45 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Routes
 // Serve main page
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'index.html'));
+  // Try multiple possible locations for index.html
+  const possiblePaths = [
+    path.join(__dirname, 'views', 'index.html'),
+    path.join(__dirname, 'public', 'index.html'),
+    path.join(__dirname, 'views', '404.html')
+  ];
+  
+  const fs = require('fs');
+  let htmlPath = null;
+  
+  for (const testPath of possiblePaths) {
+    if (fs.existsSync(testPath)) {
+      htmlPath = testPath;
+      break;
+    }
+  }
+  
+  if (htmlPath) {
+    console.log('📄 Serving HTML from:', htmlPath);
+    res.sendFile(htmlPath);
+  } else {
+    console.log('❌ No HTML file found, serving basic response');
+    res.send(`
+      <html>
+        <head><title>GPS Tracker</title></head>
+        <body>
+          <h1>GPS Tracker Service</h1>
+          <p>Service is running! 🚀</p>
+          <p>API Endpoints:</p>
+          <ul>
+            <li><a href="/health">/health</a> - Service status</li>
+            <li><a href="/pings">/pings</a> - All GPS data</li>
+            <li><a href="/latest">/latest</a> - Latest GPS ping</li>
+            <li><a href="/coordinates">/coordinates</a> - Valid coordinates only</li>
+          </ul>
+        </body>
+      </html>
+    `);
+  }
 });
 
 // Receive GPS pings from TCP service
