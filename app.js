@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Start the TCP server
-require('./tcpServer'); // <-- This runs it on startup
+require('./routes/tcpServer'); // <-- This runs it on startup
 
 // JSON parsing and static files
 app.use(express.json());
