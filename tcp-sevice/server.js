@@ -100,133 +100,47 @@ const tcpServer = net.createServer((socket) => {
 });
 
 // Forward data to HTTP service
-function forwardToHTTPService(gpsData) {
-  const postData = JSON.stringify(gpsData);
-  const url = new URL('/ping', HTTP_SERVICE_URL);
-  
-  const options = {
-    hostname: url.hostname,
-    port: url.port || 443,
-    path: url.pathname,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(postData),
-      'User-Agent': 'TCP-GPS-Service/1.0'
-    },
-    timeout: 5000
-  };
+// Node 18+ has global fetch
+async function forwardToHTTPService(gpsData) {
+  try {
+    const base = (HTTP_SERVICE_URL || '').replace(/\/$/, '');
+    const res = await fetch(`${base}/ping`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'TCP-GPS-Service/1.0' },
+      body: JSON.stringify(gpsData)
+    });
 
-  const req = https.request(options, (res) => {
+    const body = await res.text();
     stats.packetsForwarded++;
-    console.log(`📤 Forwarded to HTTP service - Status: ${res.statusCode}`);
-    
-    let responseBody = '';
-    res.on('data', (chunk) => {
-      responseBody += chunk;
-    });
-    
-    res.on('end', () => {
-      if (responseBody) {
-        console.log('📥 HTTP service response:', responseBody);
-      }
-    });
-  });
+    console.log(`📤 Forwarded to HTTP service - Status: ${res.status}`);
 
-  req.on('error', (err) => {
+    if (!res.ok) console.log('📥 HTTP service response:', body);
+  } catch (err) {
     stats.errors++;
-    console.error('❌ Error forwarding to HTTP service:', err.message);
-  });
-
-  req.on('timeout', () => {
-    stats.errors++;
-    console.error('⏱️  Timeout forwarding to HTTP service');
-    req.destroy();
-  });
-
-  req.write(postData);
-  req.end();
+    console.error('❌ Error forwarding to HTTP service:', err.message || err);
+  }
 }
+
 
 // Parse ST-915L GPS data
-function parseSTGPS(rawString, hexString) {
-  try {
-    console.log('🔍 Parsing GPS data...');
-    
-    // Pattern 1: Direct decimal coordinates (lat,lon)
-    const decimalMatch = rawString.match(/(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
-    if (decimalMatch) {
-      const lat = parseFloat(decimalMatch[1]);
-      const lon = parseFloat(decimalMatch[2]);
-      if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
-        console.log('✅ Found decimal coordinates');
-        return { lat, lon };
-      }
-    }
-    
-    // Pattern 2: NMEA sentences
-    if (rawString.includes('$GP') || rawString.includes('$GN')) {
-      const nmeaData = parseNMEA(rawString);
-      if (nmeaData) {
-        console.log('✅ Parsed NMEA data');
-        return nmeaData;
-      }
-    }
-    
-    // Pattern 3: Comma-separated values (try different field positions)
-    const parts = rawString.split(',');
-    if (parts.length >= 3) {
-      for (let i = 0; i < parts.length - 1; i++) {
-        const lat = parseFloat(parts[i]);
-        const lon = parseFloat(parts[i + 1]);
-        if (!isNaN(lat) && !isNaN(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
-          console.log(`✅ Found coordinates at positions ${i}, ${i + 1}`);
-          return { lat, lon };
-        }
-      }
-    }
-    
-    // Pattern 4: ST915-specific format (customize based on your device manual)
-    if (rawString.includes('ST915') || rawString.includes('*')) {
-      // Add specific ST-915L parsing logic here
-      console.log('🔍 Detected potential ST915 format');
-    }
-    
-    // Pattern 5: Try hex parsing for binary protocols
-    if (hexString.length >= 32) {
-      const hexData = parseHexCoordinates(hexString);
-      if (hexData) {
-        console.log('✅ Parsed hex coordinates');
-        return hexData;
-      }
-    }
-    
-    console.log('⚠️  No recognizable GPS format found');
-    return null;
-    
-  } catch (error) {
-    console.error('❌ GPS parsing error:', error);
-    return null;
+function parseSTGPS(raw /*, hex */) {
+  if (raw.startsWith('**HQ')) {
+    const p = raw.replace(/^\*\*/, '').replace(/#$/, '').split(',');
+    // **HQ,ID,V1,224148,A,3612.8781,N,08140.0749,W,000.00,000,080825,...
+    const fixOK = p[4] === 'A';
+    if (!fixOK) return null;
+    const lat = dmToDec(p[5], p[6]);
+    const lon = dmToDec(p[7], p[8]);
+    const speedKn = parseFloat(p[9]) || 0;
+    return {
+      lat, lon,
+      speed: speedKn * 1.852,           // knots → km/h (optional)
+      timestamp: new Date().toISOString(),
+      imei: p[1]                         // the short device ID in HQ frame
+    };
   }
-}
 
-function parseNMEA(nmeaString) {
-  const gprmcMatch = nmeaString.match(/\$G[PN]RMC,([^*]+)/);
-  if (gprmcMatch) {
-    const parts = gprmcMatch[1].split(',');
-    if (parts.length >= 9 && parts[1] === 'A') { // Status 'A' = active
-      const lat = convertDMMtoDD(parts[2], parts[3]);
-      const lon = convertDMMtoDD(parts[4], parts[5]);
-      if (!isNaN(lat) && !isNaN(lon)) {
-        return {
-          lat: lat,
-          lon: lon,
-          speed: parts[6] ? parseFloat(parts[6]) * 1.852 : null, // knots to km/h
-          timestamp: new Date().toISOString()
-        };
-      }
-    }
-  }
+  // If one day you want to support binary GT06 packets, handle `hex` here.
   return null;
 }
 
@@ -243,13 +157,16 @@ function parseHexCoordinates(hexString) {
   return null;
 }
 
-function convertDMMtoDD(dmm, direction) {
-  if (!dmm || !direction) return NaN;
-  const degrees = Math.floor(parseFloat(dmm) / 100);
-  const minutes = parseFloat(dmm) % 100;
-  let dd = degrees + (minutes / 60);
-  if (direction === 'S' || direction === 'W') dd *= -1;
-  return dd;
+function dmToDec(dm, hemi) {
+  // dm like "3612.8781" or "08140.0749"
+  const i = dm.indexOf('.');
+  const degStr = dm.slice(0, i - 2);      // all but last 2 pre-decimal are degrees
+  const minStr = dm.slice(i - 2);         // last 2 pre-decimal + fraction are minutes
+  const deg = parseInt(degStr, 10);
+  const mins = parseFloat(minStr);
+  let dec = deg + mins / 60;
+  if (hemi === 'S' || hemi === 'W') dec = -dec;
+  return dec;
 }
 
 // Start TCP server
