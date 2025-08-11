@@ -56,29 +56,66 @@ function hqTimestamp(hhmmss, ddmmyy) {
  */
 function parseSTGPS(raw, hex) {
   const out = [];
-  // match **HQ,...# or *HQ,...# just in case
-  const frames = raw.match(/\*\*?HQ[^#]+#/g) || [];
-  for (const frame of frames) {
-    const p = frame.replace(/^\*\*/, '').replace(/#$/, '').split(',');
-    // Expected: HQ,ID,V1,hhmmss,A,lat,N,lon,W,speed,course,ddmmyy,...
-    if (p[0] !== 'HQ') continue;
-    if (p[4] !== 'A') continue; // require valid fix
-
-    const lat = dmToDec(p[5], p[6]);
-    const lon = dmToDec(p[7], p[8]);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-
-    out.push({
-      lat,
-      lon,
-      timestamp: hqTimestamp(p[3], p[12]),
-      rawData: frame,
-      hexData: hex,
-      imei: p[1], // short device ID reported in HQ frame
-    });
+  const frames = raw.match(/\*+HQ[^#]+#/g) || [];   // match *HQ or **HQ
+  if (frames.length === 0) {
+    console.log('🟡 parseSTGPS: no HQ frames found in chunk');
+    return out;
   }
+
+  for (const frame of frames) {
+    try {
+      const cleaned = frame.replace(/^\*+/, '').replace(/#$/, ''); // strip 1+ leading * and trailing #
+      const p = cleaned.split(',');
+
+      // Debug the fields when parsing
+      console.log('🔎 HQ fields:', p);
+
+      // Expect: HQ,ID,V1,hhmmss,A|V,lat,N/S,lon,E/W,speed,course,ddmmyy,....
+      if (p[0] !== 'HQ') {
+        console.log('⛔ skip: p[0] !== "HQ" →', p[0]);
+        continue;
+      }
+
+      const fixFlag = p[4];
+      if (fixFlag !== 'A') {
+        console.log('⛔ skip: fix flag not A →', fixFlag);
+        continue;
+      }
+
+      const latStr = p[5], latHem = p[6];
+      const lonStr = p[7], lonHem = p[8];
+      const dateStr = p[11];   // ddmmyy  ← important: index 11
+      const timeStr = p[3];    // hhmmss
+
+      const lat = dmToDec(latStr, latHem);
+      const lon = dmToDec(lonStr, lonHem);
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        console.log('⛔ skip: non-finite lat/lon →', latStr, latHem, lonStr, lonHem, '=>', lat, lon);
+        continue;
+      }
+
+      const ts = hqTimestamp(timeStr, dateStr);
+      const fix = {
+        lat,
+        lon,
+        timestamp: ts,
+        rawData: frame,
+        hexData: hex,
+        imei: p[1],
+      };
+
+      console.log('✅ fix parsed:', fix);
+      out.push(fix);
+    } catch (e) {
+      console.log('💥 parse error on frame:', frame, e.message);
+    }
+  }
+
+  if (out.length === 0) console.log('🟠 parseSTGPS: no valid fixes produced');
   return out;
 }
+
 
 // ---------- TCP Server ----------
 const tcpServer = net.createServer((socket) => {
