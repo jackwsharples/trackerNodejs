@@ -3,3 +3,28 @@ Tracker info
 4G
 ST-915L-4GSA
 ID: 7026168531
+
+Production TCP server domain 
+gondola.proxy.rlwy.net:19775 
+Port: 7000
+TrackerCommand: 8040000 35.212.168 19775
+Web:https://mototrac.up.railway.app/
+
+Testing TCP server domain
+yamabiko.proxy.rlwy.net:25324
+Port: 7000
+TrackerCommand: 8040000 35.212.113.203 25324
+Web: https://trackernodejs-staging.up.railway.app/
+
+
+Tracker Commands 
+Update TCP Location: 8040000 ipValue portValue
+- 8040000 35.212.168 19775
+
+Find ip/portValue
+nslookup yamabiko.proxy.rlwy.net
+
+
+Time per packet: 8090000 timeValue
+
+
