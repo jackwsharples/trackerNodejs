@@ -1,152 +1,303 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>GPS Tracker</title>
-  <!-- ✅ Fixed Leaflet CSS (integrity removed) -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tracker Dashboard</title>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/font/lucide.css">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #f4f4f4;
+    :root{
+      --bg:#0b0f14; --panel:#111823; --panel-2:#0f1620; --text:#e8eef7; --muted:#9fb0c6;
+      --brand:#6ea8fe; --brand-2:#91c2ff; --accent:#22d3ee; --danger:#ff6b6b; --ok:#4ade80;
+      --border:rgba(255,255,255,.08);
     }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font-family:Inter,system-ui,Segoe UI,Arial,sans-serif; background:linear-gradient(180deg,var(--bg),#070a0f 60%); color:var(--text)}
+    a{color:var(--brand)}
+    .wrap{max-width:1100px; margin:0 auto; padding:16px}
+    header{position:sticky; top:0; z-index:20; backdrop-filter:saturate(120%) blur(4px); background:rgba(10,14,20,.7); border-bottom:1px solid var(--border)}
+    .nav{display:flex; align-items:center; gap:12px; padding:12px 16px}
+    .logo{display:flex; align-items:center; gap:10px; font-weight:700}
+    .logo .dot{width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px var(--accent)}
+    .tabs{display:flex; gap:6px; margin-left:18px}
+    .tab{padding:8px 12px; border-radius:10px; color:var(--muted); cursor:pointer; border:1px solid var(--border)}
+    .tab.active{color:var(--text); background:linear-gradient(180deg,var(--panel),var(--panel-2)); box-shadow:0 4px 20px rgba(0,0,0,.25)}
+    .spacer{flex:1}
+    .chip{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:999px; border:1px solid var(--border); background:linear-gradient(180deg,var(--panel),var(--panel-2)); color:var(--muted)}
+    .chip button{all:unset; cursor:pointer; padding:.25rem .5rem; border-radius:8px; border:1px solid var(--border)}
+    .main{padding:18px;}
+    .grid{display:grid; grid-template-columns:1fr; gap:16px}
+    .card{background:linear-gradient(180deg,var(--panel),var(--panel-2)); border:1px solid var(--border); border-radius:16px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .card h2{margin:0 0 10px 0; font-size:18px}
+    .card h3{margin:10px 0 8px 0; font-size:16px; color:var(--brand-2)}
+    .muted{color:var(--muted)}
+    .row{display:flex; gap:12px; flex-wrap:wrap}
+    .btn{display:inline-flex; align-items:center; gap:8px; padding:10px 12px; background:#0f1520; border:1px solid var(--border); color:var(--text); border-radius:12px; cursor:pointer}
+    .btn.primary{background:linear-gradient(180deg,#122843,#0e1b30); border-color:#1e3a5f}
+    .btn.danger{border-color:#5c1b1b; background:linear-gradient(180deg,#2a0e0e,#1c0b0b); color:#ffb3b3}
+    .btn:active{transform:translateY(1px)}
+    .stack{display:flex; flex-direction:column; gap:10px}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background:#0a0f16; border:1px solid var(--border); border-radius:8px; padding:10px; color:#d3e0f0}
+    .flex{display:flex; gap:16px; align-items:center; flex-wrap:wrap}
+    .pill{padding:6px 10px; border:1px solid var(--border); border-radius:999px; color:var(--muted)}
 
-    header {
-      background-color: #282c34;
-      color: #fff;
-      padding: 1rem;
-      text-align: center;
-      font-size: 1.8rem;
-      font-weight: bold;
-      letter-spacing: 1px;
-    }
+    /* Map */
+    #map{width:100%; height:520px; border-radius:14px; border:1px solid var(--border);}
 
-    .controls {
-      text-align: center;
-      margin: 1rem;
-    }
+    /* Panels within pages */
+    .cols{display:grid; grid-template-columns:1.2fr .8fr; gap:16px}
+    @media (max-width: 980px){ .cols{grid-template-columns:1fr;}}
 
-    #map {
-      height: 90vh;
-      width: 90%;
-      margin: 1rem auto;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    }
+    pre.json{max-height:480px; overflow:auto; background:#0a0f16; border:1px solid var(--border); padding:12px; border-radius:12px}
 
-    button {
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      background-color: #007bff;
-      color: white;
-      border:none;
-      border-radius: 5px;
-      margin-right: 1rem;
-      cursor: pointer;
-    }
-
-    button:hover{
-      background-color: #074485;
-    }
-
-    a.view-json {
-      font-size: 1rem;
-      color:#007bff;
-      text-decoration: none;
-    }
-
-    a.view-json:hover{
-      text-decoration: underline;
-    }
-
-    footer {
-      text-align: center;
-      padding: 0.8rem;
-      color: #777;
-      font-size: 0.9rem;
-    }
+    footer{margin-top:28px; padding:20px; text-align:center; color:var(--muted)}
   </style>
 </head>
 <body>
-  <header>📍 Live GPS Tracker
-    <div class="controls">
-      <button onclick="clearMap()">Clear Map</button>
-      <a class="view-json" href="/pings" target="_blank">View Raw Pings JSON</a>
+  <header>
+    <div class="nav wrap">
+      <div class="logo"><span class="dot"></span> Tracker</div>
+      <div class="tabs">
+        <div class="tab active" data-route="home">Home</div>
+        <div class="tab" data-route="map">Map</div>
+        <div class="tab" data-route="testing">Testing/Prod</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="chip">
+        <span id="envLabel">ENV: same-origin</span>
+        <button id="toggleEnv">switch</button>
+      </div>
     </div>
   </header>
-  <div id="map"></div>
-  <footer>Powered by OpenStreetMap + Leaflet.js</footer>
 
-  <!-- ✅ Fixed Leaflet JS (integrity removed) -->
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  ></script>
+  <main class="main wrap">
+    <!-- HOME PAGE -->
+    <section id="page-home" class="grid">
+      <div class="card">
+        <h2>Dashboard</h2>
+        <p class="muted">Quick actions and a darker, cleaner look. Use the tabs up top to switch between Home, Map, and Testing/Prod controls.</p>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnRefresh">Refresh data</button>
+          <button class="btn danger" id="btnReset">Delete all stored data</button>
+        </div>
+      </div>
+
+      <div class="card cols">
+        <div>
+          <h3>Ideas / Roadmap Board</h3>
+          <div class="stack">
+            <label class="muted">Add an idea</label>
+            <input id="ideaInput" class="kbd" placeholder="e.g., Split rides automatically when stopped for > 10 min"/>
+            <div class="row">
+              <button class="btn" id="addIdea">Add</button>
+              <button class="btn" id="clearIdeas">Clear Board</button>
+            </div>
+            <ul id="ideaList" class="stack" style="list-style:none; padding:0; margin-top:4px"></ul>
+          </div>
+        </div>
+        <div>
+          <h3>Raw JSON Pings (inline)</h3>
+          <pre id="rawJson" class="json kbd">Loading…</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAP PAGE -->
+    <section id="page-map" class="grid" style="display:none">
+      <div class="card">
+        <div class="flex">
+          <h2 style="margin:0">Map</h2>
+          <span class="pill">Tile: Carto Dark Matter</span>
+          <div class="spacer"></div>
+          <button class="btn" id="btnSimple">Simple Map</button>
+          <button class="btn" id="btnRides">Segment Rides</button>
+        </div>
+        <div id="map" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- TESTING / PROD PAGE -->
+    <section id="page-testing" class="grid" style="display:none">
+      <div class="card">
+        <h2>Testing / Production</h2>
+        <div class="stack">
+          <div class="row">
+            <div class="stack" style="min-width:280px; flex:1">
+              <label class="muted">API Base URL (optional). Empty = same origin</label>
+              <input id="apiBase" class="kbd" placeholder="https://your-http-service.up.railway.app" />
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn" id="saveApi">Save</button>
+            <button class="btn" id="clearApi">Clear</button>
+          </div>
+          <p class="muted">The UI will call <code>GET /pings</code> and <code>DELETE /pings</code> on this base. If your reset endpoint is different, change <em>resetData()</em> in the script below.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <small>© <span id="year"></span> Tracker • Dark UI revamp</small>
+  </footer>
 
   <script>
-    // Initialize map
-    const map = L.map('map').setView([36.2128, -81.6741], 13);
+    // ---------- Router (simple tabs) ----------
+    const pages = {
+      home: document.getElementById('page-home'),
+      map: document.getElementById('page-map'),
+      testing: document.getElementById('page-testing')
+    };
+    const tabs = Array.from(document.querySelectorAll('.tab'));
+    function setRoute(name){
+      tabs.forEach(t=>t.classList.toggle('active', t.dataset.route===name));
+      Object.entries(pages).forEach(([k,el])=> el.style.display = (k===name)?'grid':'none');
+      if(name==='map'){ setTimeout(initMapOnce, 0); refreshMap(); }
+      if(name==='home'){ refreshRaw(); }
+    }
+    tabs.forEach(t=> t.addEventListener('click', ()=> setRoute(t.dataset.route)));
 
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map);
+    // ---------- API base (Testing/Prod toggle) ----------
+    const apiBaseInput = document.getElementById('apiBase');
+    const envLabel = document.getElementById('envLabel');
+    const toggleEnvBtn = document.getElementById('toggleEnv');
 
-    const markers = [] ;
-    let pathLine = null;
+    function getBase(){ return localStorage.getItem('apiBase') || ''; }
+    function setBase(v){ if(v) localStorage.setItem('apiBase', v); else localStorage.removeItem('apiBase'); updateEnvLabel(); }
+    function updateEnvLabel(){ envLabel.textContent = 'ENV: ' + (getBase()||'same-origin'); apiBaseInput.value = getBase(); }
 
-    function clearMap(){
-      markers.forEach(marker => map.removeLayer(marker));
-      markers.length = 0;
-      if(pathLine){
-        map.removeLayer(pathLine);
-        pathLine = null;
-      }
+    document.getElementById('saveApi').onclick = ()=> setBase(apiBaseInput.value.trim());
+    document.getElementById('clearApi').onclick = ()=> setBase('');
+    toggleEnvBtn.onclick = ()=> {
+      if(getBase()){ setBase(''); } else { apiBaseInput.focus(); }
+    };
+
+    updateEnvLabel();
+
+    // ---------- Home actions ----------
+    document.getElementById('btnRefresh').onclick = ()=>{ refreshRaw(); if(currentView==='rides'){ refreshMapAsRides(); } else { refreshMap(); } };
+    document.getElementById('btnReset').onclick = resetData;
+
+    // Ideas board (local only)
+    const ideaList = document.getElementById('ideaList');
+    function loadIdeas(){ (JSON.parse(localStorage.getItem('ideas')||'[]')).forEach(addIdeaLi); }
+    function saveIdeas(){ const items = Array.from(document.querySelectorAll('#ideaList li')).map(li=>li.textContent); localStorage.setItem('ideas', JSON.stringify(items)); }
+    function addIdeaLi(text){ const li = document.createElement('li'); li.textContent = text; li.className='kbd'; ideaList.appendChild(li); }
+    document.getElementById('addIdea').onclick = ()=>{ const v = document.getElementById('ideaInput').value.trim(); if(!v) return; addIdeaLi(v); saveIdeas(); document.getElementById('ideaInput').value=''; };
+    document.getElementById('clearIdeas').onclick = ()=>{ ideaList.innerHTML=''; saveIdeas(); };
+    loadIdeas();
+
+    // ---------- Fetch helpers ----------
+    async function api(path, opts){
+      const base = getBase();
+      const url = base ? base.replace(/\/$/,'') + path : path; // same-origin by default
+      const res = await fetch(url, opts);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      return res;
     }
 
-    // Fetch pings and place markers
-    async function loadPings() {
-      try {
-        const res = await fetch('/pings');
-        const pings = await res.json();
+    async function getPings(){
+      try{
+        const res = await api('/pings');
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (Array.isArray(data?.pings) ? data.pings : []);
+        return list;
+      }catch(e){ console.error('getPings failed', e); return []; }
+    }
 
-        //Accept Array for actual GPS pings, not just test data pings
-        const list = Array.isArray(data) ?  data : (Array.isArray(data?.pings) ? data.pings : []);
-        //Only real points
-        const pts = list.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+    async function resetData(){
+      // Adjust to your server: try DELETE /pings first; fallback to /reset
+      try{
+        await api('/pings', { method:'DELETE' });
+      }catch(e){
+        console.warn('DELETE /pings failed, trying /reset', e);
+        try{ await api('/reset', { method:'POST' }); }catch(e2){ alert('Reset failed. Ensure your server exposes DELETE /pings or POST /reset.'); return; }
+      }
+      alert('All stored data cleared');
+      refreshRaw(); refreshMap();
+    }
 
+    async function refreshRaw(){
+      const list = await getPings();
+      const doc = { count:list.length, pings:list };
+      document.getElementById('rawJson').textContent = JSON.stringify(doc, null, 2);
+    }
 
+    // ---------- Map ----------
+    let map, markers=[], pathLine=null, currentView='simple';
 
-        //Clear existing path lines
-        clearMap();
-
-        const pathCoords = [];
-        pts.forEach(({ lat, lon, timestamp }) => {
-          console.log(``);
-        const marker = L.marker([lat, lon])
-          .addTo(map)
-          .bindPopup(`📍 <strong>${lat.toFixed(5)}, ${lon.toFixed(5)}</strong><br>${new Date(timestamp).toLocaleString()}`);
-        
-        markers.push(marker);
-        pathCoords.push([lat, lon]);
+    function initMapOnce(){
+      if(map) return;
+      map = L.map('map', { zoomControl: true });
+      const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 20
       });
-
-      // Add polyline (if at least 2 points)
-      if (pathCoords.length >= 2) {
-        pathLine = L.polyline(pathCoords, { color: 'blue' }).addTo(map);
-      }
-
-    } catch (err) {
-      console.error('Failed to load pings:', err);
+      dark.addTo(map);
+      map.setView([36.214, -81.668], 14);
+      document.getElementById('btnSimple').onclick = ()=>{ currentView='simple'; refreshMap(); };
+      document.getElementById('btnRides').onclick = ()=>{ currentView='rides'; refreshMapAsRides(); };
     }
-  }
 
-    loadPings();
-    setInterval(loadPings, 10000);
+    function clearMap(){ markers.forEach(m=> map.removeLayer(m)); markers=[]; if(pathLine){ map.removeLayer(pathLine); pathLine=null; } }
+
+    async function refreshMap(){
+      const list = await getPings();
+      const pts = list.filter(p=> Number.isFinite(p.lat) && Number.isFinite(p.lon));
+      clearMap();
+      const coords = [];
+      pts.forEach(p=>{
+        const mk = L.marker([p.lat, p.lon]).addTo(map).bindPopup(`${new Date(p.timestamp).toLocaleString()}<br>${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}`);
+        markers.push(mk);
+        coords.push([p.lat, p.lon]);
+      });
+      if(coords.length>=2){ pathLine = L.polyline(coords).addTo(map); map.fitBounds(pathLine.getBounds(), { padding:[20,20] }); }
+      else if(coords.length===1){ map.setView(coords[0], 16); }
+    }
+
+    // Simple ride segmentation: split when time gap > 10 min (600s)
+    function segmentByTime(points, gapSeconds=600){
+      const out=[]; let cur=[]; let prev=null;
+      for(const p of points){
+        if(!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
+        const t = new Date(p.timestamp).getTime();
+        if(prev && (t - prev) > gapSeconds*1000){ if(cur.length) out.push(cur); cur=[]; }
+        cur.push(p); prev = t;
+      }
+      if(cur.length) out.push(cur);
+      return out;
+    }
+
+    async function refreshMapAsRides(){
+      const list = await getPings();
+      const pts = list.filter(p=> Number.isFinite(p.lat) && Number.isFinite(p.lon)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
+      const groups = segmentByTime(pts, 600);
+      clearMap();
+      const bounds = [];
+      groups.forEach((grp, idx)=>{
+        const coords = grp.map(p=>[p.lat, p.lon]);
+        const poly = L.polyline(coords).addTo(map);
+        grp.forEach(p=>{ bounds.push([p.lat,p.lon]); });
+        const start = grp[0], end = grp[grp.length-1];
+        const startMk = L.circleMarker([start.lat,start.lon], { radius:6 }).addTo(map).bindPopup(`Ride ${idx+1} start<br>${new Date(start.timestamp).toLocaleString()}`);
+        const endMk = L.circleMarker([end.lat,end.lon], { radius:6 }).addTo(map).bindPopup(`Ride ${idx+1} end<br>${new Date(end.timestamp).toLocaleString()}`);
+        markers.push(startMk,endMk);
+      });
+      if(bounds.length){ map.fitBounds(bounds, { padding:[20,20] }); }
+    }
+
+    // Init
+    document.getElementById('year').textContent = new Date().getFullYear();
+    setRoute('home');
+    refreshRaw();
   </script>
 </body>
 </html>
