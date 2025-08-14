@@ -114,11 +114,19 @@
         const res = await fetch('/pings');
         const pings = await res.json();
 
+        //Accept Array for actual GPS pings, not just test data pings
+        const list = Array.isArray(data) ?  data : (Array.isArray(data?.pings) ? data.pings : []);
+        //Only real points
+        const pts = list.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+
+
+
         //Clear existing path lines
         clearMap();
 
         const pathCoords = [];
-        pings.forEach(({ lat, lon, timestamp }) => {
+        pts.forEach(({ lat, lon, timestamp }) => {
+          console.log(``);
         const marker = L.marker([lat, lon])
           .addTo(map)
           .bindPopup(`📍 <strong>${lat.toFixed(5)}, ${lon.toFixed(5)}</strong><br>${new Date(timestamp).toLocaleString()}`);
