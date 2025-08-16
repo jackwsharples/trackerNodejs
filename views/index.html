@@ -60,6 +60,12 @@
     pre.json{max-height:480px; overflow:auto; background:#0a0f16; border:1px solid var(--border); padding:12px; border-radius:12px}
 
     footer{margin-top:28px; padding:20px; text-align:center; color:var(--muted)}
+
+    /* Modal for demo */
+    .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.5); z-index:50}
+    .modal.open{display:flex}
+    .modal-card{width:min(900px,92vw); background:linear-gradient(180deg,var(--panel),var(--panel-2)); border:1px solid var(--border); border-radius:16px; padding:16px}
+    #demoMap{width:100%; height:420px; border-radius:12px; border:1px solid var(--border)}
   </style>
 </head>
 <body>
@@ -88,6 +94,7 @@
         <div class="row" style="margin-top:12px">
           <button class="btn primary" id="btnRefresh">Refresh data</button>
           <button class="btn danger" id="btnReset">Delete all stored data</button>
+          <button class="btn" id="btnDemo">Live Demo</button>
         </div>
       </div>
 
@@ -118,8 +125,9 @@
           <h2 style="margin:0">Map</h2>
           <span class="pill">Tile: Carto Dark Matter</span>
           <div class="spacer"></div>
-          <button class="btn" id="btnSimple">Simple Map</button>
+          <button class="btn" id="btnSimple">Simple Path</button>
           <button class="btn" id="btnRides">Segment Rides</button>
+          <button class="btn" id="btnLivePing">Live Ping</button>
         </div>
         <div id="map" style="margin-top:12px"></div>
       </div>
@@ -140,7 +148,7 @@
             <button class="btn" id="saveApi">Save</button>
             <button class="btn" id="clearApi">Clear</button>
           </div>
-          <p class="muted">The UI will call <code>GET /pings</code> and <code>DELETE /pings</code> on this base. If your reset endpoint is different, change <em>resetData()</em> in the script below.</p>
+          <p class="muted">The UI will call <code>GET /pings</code>, <code>DELETE /pings</code>, and <code>GET /latest</code> (fallbacks to last of /pings). If your reset endpoint is different, change <em>resetData()</em> below.</p>
         </div>
       </div>
     </section>
@@ -149,6 +157,18 @@
   <footer>
     <small>© <span id="year"></span> Tracker • Dark UI revamp</small>
   </footer>
+
+  <!-- Demo Modal -->
+  <div id="demoModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="flex" style="margin-bottom:10px">
+        <h3 style="margin:0">Live Demo</h3>
+        <div class="spacer"></div>
+        <button class="btn" id="closeDemo">Close</button>
+      </div>
+      <div id="demoMap"></div>
+    </div>
+  </div>
 
   <script>
     // ---------- Router (simple tabs) ----------
@@ -177,15 +197,14 @@
 
     document.getElementById('saveApi').onclick = ()=> setBase(apiBaseInput.value.trim());
     document.getElementById('clearApi').onclick = ()=> setBase('');
-    toggleEnvBtn.onclick = ()=> {
-      if(getBase()){ setBase(''); } else { apiBaseInput.focus(); }
-    };
+    toggleEnvBtn.onclick = ()=> { if(getBase()){ setBase(''); } else { apiBaseInput.focus(); } };
 
     updateEnvLabel();
 
     // ---------- Home actions ----------
     document.getElementById('btnRefresh').onclick = ()=>{ refreshRaw(); if(currentView==='rides'){ refreshMapAsRides(); } else { refreshMap(); } };
     document.getElementById('btnReset').onclick = resetData;
+    document.getElementById('btnDemo').onclick = openDemo;
 
     // Ideas board (local only)
     const ideaList = document.getElementById('ideaList');
@@ -195,6 +214,45 @@
     document.getElementById('addIdea').onclick = ()=>{ const v = document.getElementById('ideaInput').value.trim(); if(!v) return; addIdeaLi(v); saveIdeas(); document.getElementById('ideaInput').value=''; };
     document.getElementById('clearIdeas').onclick = ()=>{ ideaList.innerHTML=''; saveIdeas(); };
     loadIdeas();
+
+    // ---------- Demo modal ----------
+    const demoModal = document.getElementById('demoModal');
+    document.getElementById('closeDemo').onclick = closeDemo;
+    let demoMap, demoMarker, demoLine, demoTimer;
+    const demoPoints = [
+      {lat:36.21445, lon:-81.66798},
+      {lat:36.21490, lon:-81.66836},
+      {lat:36.21501, lon:-81.66911},
+      {lat:36.21420, lon:-81.67228}
+    ];
+    function openDemo(){
+      demoModal.classList.add('open');
+      setTimeout(initDemoMap,0);
+    }
+    function closeDemo(){
+      demoModal.classList.remove('open');
+      if(demoTimer) clearInterval(demoTimer);
+      if(demoMap){ demoMap.remove(); demoMap=null; demoMarker=null; demoLine=null; }
+    }
+    function initDemoMap(){
+      if(demoMap) return;
+      demoMap = L.map('demoMap');
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {subdomains:'abcd',maxZoom:20}).addTo(demoMap);
+      demoMap.setView([demoPoints[0].lat, demoPoints[0].lon], 15);
+      demoMarker = L.marker([demoPoints[0].lat, demoPoints[0].lon]).addTo(demoMap);
+      demoLine = L.polyline([[demoPoints[0].lat, demoPoints[0].lon]]).addTo(demoMap);
+      let i=0;
+      demoTimer = setInterval(()=>{
+        i = (i+1) % demoPoints.length;
+        const p = demoPoints[i];
+        demoMarker.setLatLng([p.lat, p.lon]);
+        const coords = demoLine.getLatLngs(); coords.push([p.lat,p.lon]); demoLine.setLatLngs(coords);
+        demoMap.panTo([p.lat,p.lon]);
+        if(i===demoPoints.length-1){ // reset after last point
+          setTimeout(()=>{ demoLine.setLatLngs([[demoPoints[0].lat, demoPoints[0].lon]]); demoMarker.setLatLng([demoPoints[0].lat, demoPoints[0].lon]); demoMap.setView([demoPoints[0].lat,demoPoints[0].lon],15); }, 800);
+        }
+      }, 1200);
+    }
 
     // ---------- Fetch helpers ----------
     async function api(path, opts){
@@ -214,14 +272,20 @@
       }catch(e){ console.error('getPings failed', e); return []; }
     }
 
-    async function resetData(){
-      // Adjust to your server: try DELETE /pings first; fallback to /reset
+    async function getLatest(){
       try{
-        await api('/pings', { method:'DELETE' });
+        const res = await api('/latest');
+        return await res.json();
       }catch(e){
-        console.warn('DELETE /pings failed, trying /reset', e);
-        try{ await api('/reset', { method:'POST' }); }catch(e2){ alert('Reset failed. Ensure your server exposes DELETE /pings or POST /reset.'); return; }
+        // Fallback: last of /pings
+        const list = await getPings();
+        return list.sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp)).slice(-1)[0] || null;
       }
+    }
+
+    async function resetData(){
+      try{ await api('/pings', { method:'DELETE' }); }
+      catch(e){ try{ await api('/reset', { method:'POST' }); } catch(e2){ alert('Reset failed. Ensure DELETE /pings or POST /reset exists.'); return; } }
       alert('All stored data cleared');
       refreshRaw(); refreshMap();
     }
@@ -233,7 +297,7 @@
     }
 
     // ---------- Map ----------
-    let map, markers=[], pathLine=null, currentView='simple';
+    let map, markers=[], pathLine=null, currentView='simple', liveMarker;
 
     function initMapOnce(){
       if(map) return;
@@ -245,25 +309,32 @@
       map.setView([36.214, -81.668], 14);
       document.getElementById('btnSimple').onclick = ()=>{ currentView='simple'; refreshMap(); };
       document.getElementById('btnRides').onclick = ()=>{ currentView='rides'; refreshMapAsRides(); };
+      document.getElementById('btnLivePing').onclick = showLivePing;
     }
 
-    function clearMap(){ markers.forEach(m=> map.removeLayer(m)); markers=[]; if(pathLine){ map.removeLayer(pathLine); pathLine=null; } }
+    function clearMap(){ markers.forEach(m=> map.removeLayer(m)); markers=[]; if(pathLine){ map.removeLayer(pathLine); pathLine=null; } if(liveMarker){ map.removeLayer(liveMarker); liveMarker=null; } }
 
+    // Simple path view: draw a polyline through points; show ONLY start and latest markers
     async function refreshMap(){
       const list = await getPings();
-      const pts = list.filter(p=> Number.isFinite(p.lat) && Number.isFinite(p.lon));
+      const pts = list.filter(p=> Number.isFinite(p.lat) && Number.isFinite(p.lon)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
       clearMap();
-      const coords = [];
-      pts.forEach(p=>{
-        const mk = L.marker([p.lat, p.lon]).addTo(map).bindPopup(`${new Date(p.timestamp).toLocaleString()}<br>${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}`);
-        markers.push(mk);
-        coords.push([p.lat, p.lon]);
-      });
-      if(coords.length>=2){ pathLine = L.polyline(coords).addTo(map); map.fitBounds(pathLine.getBounds(), { padding:[20,20] }); }
-      else if(coords.length===1){ map.setView(coords[0], 16); }
+      if(pts.length===0){ console.log('No valid GPS fixes to plot'); return; }
+
+      const coords = pts.map(p=> [p.lat, p.lon]);
+      pathLine = L.polyline(coords).addTo(map); // draw full path
+
+      const start = pts[0];
+      const last = pts[pts.length-1];
+      const startMk = L.marker([start.lat, start.lon]).addTo(map).bindPopup(`Start<br>${new Date(start.timestamp).toLocaleString()}`);
+      const lastMk = L.marker([last.lat, last.lon]).addTo(map).bindPopup(`Latest<br>${new Date(last.timestamp).toLocaleString()}`);
+      markers.push(startMk,lastMk);
+
+      const bounds = L.latLngBounds([ [start.lat,start.lon], [last.lat,last.lon], ...coords ]);
+      map.fitBounds(bounds, { padding:[20,20] });
     }
 
-    // Simple ride segmentation: split when time gap > 10 min (600s)
+    // Ride segmentation still available (lines only + start/stop per ride)
     function segmentByTime(points, gapSeconds=600){
       const out=[]; let cur=[]; let prev=null;
       for(const p of points){
@@ -281,17 +352,29 @@
       const pts = list.filter(p=> Number.isFinite(p.lat) && Number.isFinite(p.lon)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
       const groups = segmentByTime(pts, 600);
       clearMap();
-      const bounds = [];
-      groups.forEach((grp, idx)=>{
+      const all = [];
+      groups.forEach((grp)=>{
         const coords = grp.map(p=>[p.lat, p.lon]);
-        const poly = L.polyline(coords).addTo(map);
-        grp.forEach(p=>{ bounds.push([p.lat,p.lon]); });
-        const start = grp[0], end = grp[grp.length-1];
-        const startMk = L.circleMarker([start.lat,start.lon], { radius:6 }).addTo(map).bindPopup(`Ride ${idx+1} start<br>${new Date(start.timestamp).toLocaleString()}`);
-        const endMk = L.circleMarker([end.lat,end.lon], { radius:6 }).addTo(map).bindPopup(`Ride ${idx+1} end<br>${new Date(end.timestamp).toLocaleString()}`);
-        markers.push(startMk,endMk);
+        L.polyline(coords).addTo(map);
+        if(grp.length){
+          const s = grp[0], e = grp[grp.length-1];
+          const sMk = L.marker([s.lat,s.lon]).addTo(map).bindPopup(`Ride start<br>${new Date(s.timestamp).toLocaleString()}`);
+          const eMk = L.marker([e.lat,e.lon]).addTo(map).bindPopup(`Ride end<br>${new Date(e.timestamp).toLocaleString()}`);
+          markers.push(sMk,eMk);
+          all.push(...coords);
+        }
       });
-      if(bounds.length){ map.fitBounds(bounds, { padding:[20,20] }); }
+      if(all.length) map.fitBounds(all, { padding:[20,20] });
+    }
+
+    // Live Ping: fetch last point and show a single highlighted marker
+    async function showLivePing(){
+      const last = await getLatest();
+      if(!last || !Number.isFinite(last.lat) || !Number.isFinite(last.lon)) { alert('No valid latest ping yet.'); return; }
+      if(liveMarker) { map.removeLayer(liveMarker); }
+      liveMarker = L.circleMarker([last.lat,last.lon], { radius:8 }).addTo(map).bindPopup(`Live ping<br>${new Date(last.timestamp).toLocaleString()}`);
+      map.setView([last.lat,last.lon], 16);
+      liveMarker.openPopup();
     }
 
     // Init
