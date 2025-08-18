@@ -1,0 +1,23 @@
+Ideas:
+
+Passwords/Accounts, with future plans to get some more people onto the tracker
+    - For now create the front end side of things, any user name any password 
+    - Later move into specific passwords for users, keep admin/guest for test/demo
+
+Multiple bikes/cars per account 
+   - Ability to upload a photo that would be able to save to the bike/car
+
+New format
+- Redo Home
+    - Small basic discription, name, major, love for bikes, passion project while in school
+    - Have the live tracker demo run below, always visable and able to be seen
+    - Light Dark mode switch button
+
+- Vehicle main tab
+    - List of vehicles, Photo/Name 
+    - Clicking into the vehicle leads you to 2 maps, Verticle, 
+        - Live ping in top(only shows the most recent ping) 
+        - Tracker below it, increase stored pings, Display most recent ride, drop down listing past rides(determined by 10+ mins of stationary)
+
+- Testing Page
+    - Move JSON Raw and idea board off the home page, move to the testing page
