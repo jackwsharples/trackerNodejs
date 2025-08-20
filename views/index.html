@@ -148,7 +148,6 @@
           <button class="btn" id="btnAddVehicle"><i class="lucide lucide-plus"></i> Add Vehicle</button>
         </div>
         <div class="vehicles" id="vehiclesGrid"></div>
-        <p class="muted">Tip: click a vehicle to view the Live Ping (top) and the Tracker (bottom). Upload a custom photo per vehicle.</p>
       </div>
 
       <div id="vehicleDetails" class="grid" style="display:none">
@@ -385,8 +384,8 @@
     function seedVehicles(){
       if(localStorage.getItem('vehicles')) return;
       const defaults = [
-        { id: 'veh-crf300l', name: 'CRF300L', type: 'Motorbike', img: '/public/images/moto.png' },
-        { id: 'veh-car', name: 'My Car', type: 'Car', img: '/public/images/car.png' }
+        { id: 'veh-crf300l', name: 'CRF300L', type: 'Motorbike', img: '/public/images/Crf300.png' },
+        { id: 'veh-car', name: 'My Car', type: 'Car', img: '/public/images/crossTrek.png' }
       ];
       localStorage.setItem('vehicles', JSON.stringify(defaults));
     }
