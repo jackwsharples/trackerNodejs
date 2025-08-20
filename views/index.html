@@ -198,26 +198,7 @@
 
     <!-- TESTING -->
     <section id="page-testing" class="grid" style="display:none">
-      <!--
-      <div class="card">
-        <h2>Testing / Production</h2>
-        <div class="stack">
-          <div class="row">
-            <div class="stack" style="min-width:280px; flex:1">
-              <label class="muted">API Base URL (optional). Empty = same origin</label>
-              <input id="apiBase" class="btn" placeholder="https://your-http-service.up.railway.app" />
-            </div>
-          </div>
-          <div class="row">
-            <button class="btn" id="saveApi">Save</button>
-            <button class="btn" id="clearApi">Clear</button>
-            <button class="btn danger" id="btnReset">Delete all stored data</button>
-          </div>
-          <p class="muted">The UI will call <code>GET /pings</code>, <code>DELETE /pings</code>, and <code>GET /latest</code> (fallbacks to last of /pings). If your reset endpoint is different, tweak <em>resetData()</em>.</p>
-        </div>
-      </div>
-      -->
-
+      <!---->
       <div class="card">
         <h3>Idea Board</h3>
         <div class="stack">
@@ -235,6 +216,25 @@
         <h3>Raw JSON Pings</h3>
         <pre id="rawJson" class="btn" style="white-space:pre-wrap; overflow:auto; max-height:420px">Loading…</pre>
       </div>
+
+      <div class="card">
+        <h2>Testing / Production</h2>
+        <div class="stack">
+          <div class="row">
+            <div class="stack" style="min-width:280px; flex:1">
+              <label class="muted">API Base URL (optional). Empty = same origin</label>
+              <input id="apiBase" class="btn" placeholder="https://your-http-service.up.railway.app" />
+            </div>
+          </div>
+          <div class="row">
+            <button class="btn" id="saveApi">Save</button>
+            <button class="btn" id="clearApi">Clear</button>
+            <button class="btn danger" id="btnReset">Delete all stored data</button>
+          </div>
+          <p class="muted">The UI will call <code>GET /pings</code>, <code>DELETE /pings</code>, and <code>GET /latest</code> (fallbacks to last of /pings). If your reset endpoint is different, tweak <em>resetData()</em>.</p>
+        </div>
+      </div>
+      
     </section>
   </main>
 
