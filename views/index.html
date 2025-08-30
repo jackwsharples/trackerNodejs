@@ -96,10 +96,11 @@
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#000000">
 
-  <!-- iOS-specific -->
+  <!-- iOS specific -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" >
+
 </head>
 <body>
   <header>
@@ -414,7 +415,7 @@
       const card = document.createElement('div');
       card.className = 'vehicle-card';
       const img = document.createElement('img');
-      img.src = v.img || '/public/images/Crf300.png';
+      img.src = v.img || '/public/images/moto.png';
       img.alt = v.name;
       const body = document.createElement('div');
       body.className = 'vc-body';
@@ -439,7 +440,7 @@
       const name = prompt('Vehicle name?', 'New Vehicle');
       if(!name) return;
       const type = prompt('Type (Motorbike/Car/etc.)', 'Motorbike') || 'Motorbike';
-      const img = type.toLowerCase().includes('car') ? '/public/images/car.png' : '/public/images/Crf300.png';
+      const img = type.toLowerCase().includes('car') ? '/public/images/car.png' : '/public/images/moto.png';
       const list = getVehicles();
       list.push({ id: baseId, name, type, img });
       setVehicles(list);
@@ -478,7 +479,7 @@
       currentVehicle = v;
       vdName.textContent = v.name;
       vdType.textContent = v.type || '';
-      vdImg.src = v.img || '/public/images/Crf300.png';
+      vdImg.src = v.img || '/public/images/moto.png';
 
       vehiclesListView.style.display = 'none';
       vehicleDetailsView.style.display = 'grid';
