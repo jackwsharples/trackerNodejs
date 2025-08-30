@@ -97,8 +97,8 @@ app.post('/ping', (req, res) => {
     return res.status(400).json({ error: 'Missing lat/lon coordinates' });
   }
 
-  // Keep only last 100 pings
-  if (gpsPings.length > 100) {
+  // Basic Strorage for now, stores in memory up to 1000 pings of data
+  if (gpsPings.length > 1000) {
     gpsPings.shift();
   }
 
