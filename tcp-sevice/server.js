@@ -8,8 +8,8 @@ const express = require('express');
 const TCP_PORT = process.env.PORT || 7000;
 const HTTP_SERVICE_URL = process.env.HTTP_SERVICE_URL || 'https://trackernodejs-staging.up.railway.app';
 
-console.log(`🚀 TCP GPS Service starting on port ${TCP_PORT}`);
-console.log(`📡 Will forward data to: ${HTTP_SERVICE_URL.replace(/\/$/, '')}/ping`);
+console.log(` TCP GPS Service starting on port ${TCP_PORT}`);
+console.log(` Will forward data to: ${HTTP_SERVICE_URL.replace(/\/$/, '')}/ping`);
 
 // Stats
 let stats = {
@@ -58,7 +58,7 @@ function parseSTGPS(raw, hex) {
   const out = [];
   const frames = raw.match(/\*+HQ[^#]+#/g) || [];   // match *HQ or **HQ
   if (frames.length === 0) {
-    console.log('🟡 parseSTGPS: no HQ frames found in chunk');
+    console.log(' parseSTGPS: no HQ frames found in chunk');
     return out;
   }
 
@@ -72,13 +72,13 @@ function parseSTGPS(raw, hex) {
 
       // Expect: HQ,ID,V1,hhmmss,A|V,lat,N/S,lon,E/W,speed,course,ddmmyy,....
       if (p[0] !== 'HQ') {
-        console.log('⛔ skip: p[0] !== "HQ" →', p[0]);
+        console.log(' skip: p[0] !== "HQ" →', p[0]);
         continue;
       }
 
       const fixFlag = p[4];
       if (fixFlag !== 'A') {
-        console.log('⛔ skip: fix flag not A →', fixFlag);
+        console.log(' skip: fix flag not A →', fixFlag);
         continue;
       }
 
@@ -91,7 +91,7 @@ function parseSTGPS(raw, hex) {
       const lon = dmToDec(lonStr, lonHem);
 
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-        console.log('⛔ skip: non-finite lat/lon →', latStr, latHem, lonStr, lonHem, '=>', lat, lon);
+        console.log(' skip: non-finite lat/lon →', latStr, latHem, lonStr, lonHem, '=>', lat, lon);
         continue;
       }
 
@@ -105,14 +105,14 @@ function parseSTGPS(raw, hex) {
         imei: p[1],
       };
 
-      console.log('✅ fix parsed:', fix);
+      console.log('fix parsed:', fix);
       out.push(fix);
     } catch (e) {
-      console.log('💥 parse error on frame:', frame, e.message);
+      console.log(' parse error on frame:', frame, e.message);
     }
   }
 
-  if (out.length === 0) console.log('🟠 parseSTGPS: no valid fixes produced');
+  if (out.length === 0) console.log(' parseSTGPS: no valid fixes produced');
   return out;
 }
 
@@ -120,7 +120,7 @@ function parseSTGPS(raw, hex) {
 // ---------- TCP Server ----------
 const tcpServer = net.createServer((socket) => {
   stats.connectionsTotal++;
-  console.log(`📡 GPS Tracker connected from: ${socket.remoteAddress} (Connection #${stats.connectionsTotal})`);
+  console.log(` GPS Tracker connected from: ${socket.remoteAddress} (Connection #${stats.connectionsTotal})`);
 
   // keepalive helps with long idle periods
   socket.setKeepAlive(true, 30_000);
@@ -135,7 +135,7 @@ const tcpServer = net.createServer((socket) => {
     const raw = data.toString().trim();
     const hex = data.toString('hex');
 
-    console.log(`📨 Packet #${stats.packetsReceived} from ${socket.remoteAddress}: len=${data.length}`);
+    console.log(`Packet #${stats.packetsReceived} from ${socket.remoteAddress}: len=${data.length}`);
     console.log(`  String: "${raw}"`);
     console.log(`  Hex: ${hex}`);
 
@@ -144,7 +144,7 @@ const tcpServer = net.createServer((socket) => {
     if (fixes.length > 0) {
       for (const fix of fixes) {
         stats.packetsParsed++;
-        console.log(`✅ Parsed: lat=${fix.lat}, lon=${fix.lon}, ts=${fix.timestamp}`);
+        console.log(` Parsed: lat=${fix.lat}, lon=${fix.lon}, ts=${fix.timestamp}`);
 
         // Forward only what you said you want
         forwardToHTTPService({
@@ -158,7 +158,7 @@ const tcpServer = net.createServer((socket) => {
       }
       socket.write('OK\r\n'); // ack this batch
     } else {
-      console.log('⚠️  No valid HQ fix in chunk — forwarding raw for analysis');
+      console.log(' No valid HQ fix in chunk — forwarding raw for analysis');
       forwardToHTTPService({
         lat: null,
         lon: null,
@@ -174,17 +174,17 @@ const tcpServer = net.createServer((socket) => {
 
   socket.on('end', () => {
     const ms = Date.now() - connectionStart;
-    console.log(`❌ GPS Tracker ${socket.remoteAddress} disconnected`);
-    console.log(`📊 Connection summary: ${connectionPackets} packets in ${ms}ms`);
+    console.log(` GPS Tracker ${socket.remoteAddress} disconnected`);
+    console.log(` Connection summary: ${connectionPackets} packets in ${ms}ms`);
   });
 
   socket.on('error', (err) => {
     stats.errors++;
-    console.error(`⚠️  TCP socket error from ${socket.remoteAddress}:`, err.message);
+    console.error(`  TCP socket error from ${socket.remoteAddress}:`, err.message);
   });
 
   socket.on('close', () => {
-    console.log(`🔌 Connection closed: ${socket.remoteAddress}`);
+    console.log(` Connection closed: ${socket.remoteAddress}`);
   });
 });
 
@@ -207,22 +207,22 @@ function forwardToHTTPService(payload) {
 
   const req = https.request(options, (res) => {
     stats.packetsForwarded++;
-    console.log(`📤 Forwarded to HTTP service - Status: ${res.statusCode}`);
+    console.log(`Forwarded to HTTP service - Status: ${res.statusCode}`);
     let body = '';
     res.on('data', (c) => (body += c));
     res.on('end', () => {
-      if (res.statusCode >= 400) console.log('📥 HTTP service response:', body);
+      if (res.statusCode >= 400) console.log(' HTTP service response:', body);
     });
   });
 
   req.on('error', (err) => {
     stats.errors++;
-    console.error('❌ Error forwarding to HTTP service:', err.message);
+    console.error(' Error forwarding to HTTP service:', err.message);
   });
 
   req.on('timeout', () => {
     stats.errors++;
-    console.error('⏱️  Timeout forwarding to HTTP service');
+    console.error('Timeout forwarding to HTTP service');
     req.destroy();
   });
 
@@ -233,11 +233,11 @@ function forwardToHTTPService(payload) {
 // ---------- Start servers ----------
 tcpServer.listen(TCP_PORT, '0.0.0.0', (err) => {
   if (err) {
-    console.error('❌ Failed to start TCP server:', err);
+    console.error(' Failed to start TCP server:', err);
     process.exit(1);
   }
-  console.log(`🚀 TCP GPS Service listening on port ${TCP_PORT}`);
-  console.log(`📡 Configure your ST-915L to: [railway-tcp-domain]:<proxyPort>`);
+  console.log(` TCP GPS Service listening on port ${TCP_PORT}`);
+  console.log(` Configure your ST-915L to: [railway-tcp-domain]:<proxyPort>`);
 });
 
 // Health server
@@ -259,15 +259,15 @@ app.get('/stats', (_req, res) => res.json(stats));
 
 if (healthPort !== parseInt(TCP_PORT)) {
   app.listen(healthPort, () => {
-    console.log(`💚 Health check available at port ${healthPort}/health`);
+    console.log(` Health check available at port ${healthPort}/health`);
   });
 }
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('🛑 Shutting down TCP GPS service...');
+  console.log(' Shutting down TCP GPS service...');
   tcpServer.close(() => {
-    console.log('✅ TCP server closed');
+    console.log(' TCP server closed');
     process.exit(0);
   });
 });

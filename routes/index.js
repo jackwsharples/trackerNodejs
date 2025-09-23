@@ -1,3 +1,4 @@
+//Once database is installed, delete this file
 const express = require('express');
 const path = require('path');
 const router = express.Router();

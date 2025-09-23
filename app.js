@@ -1,162 +1,145 @@
+// app.js  (CommonJS)
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
+const { PrismaClient } = require('@prisma/client');
 
+const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// GPS data storage (in-memory for now)
-const gpsPings = [];
-
-// Middleware
+// --- middleware & static ---
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Routes
-// Serve main page
+// --- home (serve views/index.html or public/index.html if present) ---
 app.get('/', (req, res) => {
-  // Try multiple possible locations for index.html
-  const possiblePaths = [
+  const candidates = [
     path.join(__dirname, 'views', 'index.html'),
-    path.join(__dirname, 'public', 'index.html'),
-    path.join(__dirname, 'views', '404.html')
+    path.join(__dirname, 'public', 'index.html')
   ];
-  
-  const fs = require('fs');
-  let htmlPath = null;
-  
-  for (const testPath of possiblePaths) {
-    if (fs.existsSync(testPath)) {
-      htmlPath = testPath;
-      break;
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return res.sendFile(p);
+  }
+  res.type('html').send('<h1>Tracker</h1><p>API is up.</p>');
+});
+
+// ---------- Helpers ----------
+async function ensureVehicle(imei) {
+  const key = imei || 'veh-default';
+  const found = await prisma.vehicle.findFirst({ where: { imei: key } });
+  if (found) return found;
+  return prisma.vehicle.create({
+    data: { imei: key, name: imei ? `Device ${imei}` : 'Unlabeled Vehicle', type: 'Motorbike' }
+  });
+}
+
+async function getRideForPing(vehicleId, ts, gapMs = 10 * 60 * 1000) {
+  const last = await prisma.ping.findFirst({
+    where: { vehicleId },
+    orderBy: { ts: 'desc' },
+    select: { ts: true, rideId: true }
+  });
+  if (!last) {
+    const ride = await prisma.ride.create({ data: { vehicleId, startedAt: ts } });
+    return ride.id;
+  }
+  const gap = ts.getTime() - last.ts.getTime();
+  if (last.rideId && gap < gapMs) return last.rideId;
+  const ride = await prisma.ride.create({ data: { vehicleId, startedAt: ts } });
+  return ride.id;
+}
+
+// ---------- Write: POST /ping ----------
+app.post('/ping', async (req, res) => {
+  try {
+    const { lat, lon, timestamp, imei, speed } = req.body || {};
+    if (lat == null || lon == null) {
+      // ignore debug/noise payloads (keeps TCP forwarder happy)
+      return res.status(200).json({ status: 'ignored' });
     }
-  }
-  
-  if (htmlPath) {
-    console.log('📄 Serving HTML from:', htmlPath);
-    res.sendFile(htmlPath);
-  } else {
-    console.log('❌ No HTML file found, serving basic response');
-    res.send(`
-      <html>
-        <head><title>GPS Tracker</title></head>
-        <body>
-          <h1>GPS Tracker Service</h1>
-          <p>Service is running! 🚀</p>
-          <p>API Endpoints:</p>
-          <ul>
-            <li><a href="/health">/health</a> - Service status</li>
-            <li><a href="/pings">/pings</a> - All GPS data</li>
-            <li><a href="/latest">/latest</a> - Latest GPS ping</li>
-            <li><a href="/coordinates">/coordinates</a> - Valid coordinates only</li>
-          </ul>
-        </body>
-      </html>
-    `);
+    const v = await ensureVehicle(imei);
+    const ts = new Date(timestamp || Date.now());
+    const rideId = await getRideForPing(v.id, ts);
+
+    const ping = await prisma.ping.create({
+      data: {
+        vehicleId: v.id,
+        rideId,
+        ts,
+        lat: Number(lat),
+        lon: Number(lon),
+        speedKph: speed != null ? Number(speed) : null
+      }
+    });
+
+    res.json({ ok: true, vehicleId: v.id, rideId, pingId: ping.id });
+  } catch (err) {
+    console.error('POST /ping error', err);
+    res.status(500).json({ error: 'server_error' });
   }
 });
 
-// Receive GPS pings from TCP service
-app.post('/ping', (req, res) => {
-  console.log('📨 Received ping from TCP service:', req.body);
-  
-  const { lat, lon, timestamp, imei, rawData, debug, source } = req.body;
-
-  // Handle both parsed and debug data
-  if (debug) {
-    // Store debug data for analysis
-    const debugPing = {
-      lat: null,
-      lon: null,
-      timestamp: timestamp || new Date().toISOString(),
-      imei: imei || 'unknown',
-      rawData: rawData,
-      debug: true,
-      source: source || 'unknown'
-    };
-    
-    gpsPings.push(debugPing);
-    console.log('🐛 Debug ping stored:', debugPing);
-    
-  } else if (lat && lon) {
-    // Store valid GPS data
-    const ping = {
-      lat: parseFloat(lat),
-      lon: parseFloat(lon),
-      timestamp: timestamp || new Date().toISOString(),
-      imei: imei || 'unknown',
-      speed: req.body.speed || null,
-      altitude: req.body.altitude || null,
-      source: source || 'tcp-service'
-    };
-    
-    gpsPings.push(ping);
-    console.log('✅ GPS ping stored:', ping);
-    
-  } else {
-    console.warn('⚠️  Invalid ping data received:', req.body);
-    return res.status(400).json({ error: 'Missing lat/lon coordinates' });
-  }
-
-  // Basic Strorage for now, stores in memory up to 1000 pings of data
-  if (gpsPings.length > 1000) {
-    gpsPings.shift();
-  }
-
-  res.status(200).json({ status: 'received', count: gpsPings.length });
-});
-
-// API endpoints
-app.get('/pings', (req, res) => {
+// ---------- Read: GET /pings (for your maps) ----------
+app.get('/pings', async (req, res) => {
+  const { vehicleId, limit } = req.query;
+  const take = Math.min(parseInt(limit || '500', 10), 5000);
+  const where = vehicleId ? { vehicleId } : undefined;
+  const pings = await prisma.ping.findMany({ where, orderBy: { ts: 'asc' }, take });
   res.json({
-    count: gpsPings.length,
-    pings: gpsPings
+    count: pings.length,
+    pings: pings.map(p => ({ lat: p.lat, lon: p.lon, timestamp: p.ts, vehicleId: p.vehicleId }))
   });
 });
 
-app.get('/latest', (req, res) => {
-  const latest = gpsPings[gpsPings.length - 1] || null;
-  res.json(latest);
+// ---------- Read: GET /latest ----------
+app.get('/latest', async (req, res) => {
+  const { vehicleId } = req.query;
+  const where = vehicleId ? { vehicleId } : undefined;
+  const latest = await prisma.ping.findFirst({ where, orderBy: { ts: 'desc' } });
+  if (!latest) return res.json(null);
+  res.json({ lat: latest.lat, lon: latest.lon, timestamp: latest.ts, vehicleId: latest.vehicleId });
 });
 
-// Get only valid GPS coordinates (not debug data)
-app.get('/coordinates', (req, res) => {
-  const validPings = gpsPings.filter(ping => !ping.debug && ping.lat !== null && ping.lon !== null);
-  res.json({
-    count: validPings.length,
-    coordinates: validPings
+// ---------- Forever mode: all rides as GeoJSON ----------
+app.get('/vehicles/:id/forever', async (req, res) => {
+  const rides = await prisma.ride.findMany({
+    where: { vehicleId: req.params.id },
+    orderBy: { startedAt: 'asc' },
+    include: { points: { orderBy: { ts: 'asc' }, select: { lat: true, lon: true, ts: true } } }
   });
+
+  const features = rides
+    .filter(r => r.points.length)
+    .map(r => ({
+      type: 'Feature',
+      properties: { rideId: r.id, startedAt: r.startedAt, endedAt: r.endedAt },
+      geometry: { type: 'LineString', coordinates: r.points.map(p => [p.lon, p.lat]) }
+    }));
+
+  res.json({ type: 'FeatureCollection', features });
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    service: 'GPS Tracker HTTP Service',
-    pings_stored: gpsPings.length,
-    timestamp: new Date().toISOString()
-  });
+// ---------- Reset (your UI’s reset button) ----------
+app.delete('/pings', async (_req, res) => {
+  await prisma.ping.deleteMany({});
+  await prisma.ride.deleteMany({});
+  res.json({ ok: true });
 });
 
-// Catch-all for debugging
-app.all('*', (req, res) => {
-  console.log('🔍 Unhandled request:', req.method, req.path, req.body || req.query);
-  res.status(404).json({ 
-    error: 'Not found', 
-    method: req.method, 
-    path: req.path,
-    available_endpoints: ['/ping', '/pings', '/latest', '/coordinates', '/health']
-  });
+// ---------- Health ----------
+app.get('/health', async (_req, res) => {
+  const count = await prisma.ping.count();
+  res.json({ status: 'OK', pings_stored: count, ts: new Date().toISOString() });
 });
 
-// Start server
+// ---------- start ----------
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🌐 GPS Tracker HTTP Service running on port ${PORT}`);
-  console.log(`📡 Ready to receive GPS data from TCP service`);
-  console.log(`🔗 Available at: https://your-app.up.railway.app`);
+  console.log(`HTTP service listening on ${PORT}`);
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 Shutting down HTTP service...');
-  process.exit(0);
-});
+process.on('SIGINT', async () => { await prisma.$disconnect(); process.exit(0); });
+process.on('SIGTERM', async () => { await prisma.$disconnect(); process.exit(0); });

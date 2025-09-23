@@ -4,12 +4,11 @@
   "description": "TCP GPS data receiver that forwards to HTTP service",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "postinstall": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy",
+    "start": "node app.js",
+    "dev": "node app.js"
   },
-  "dependencies": {
-    "express": "^4.19.2"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
+  "dependencies": {"express": "^4.19.2"},
+  "engines": {"node": ">=18.0.0"}
 }

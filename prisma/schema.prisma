@@ -1,0 +1,44 @@
+// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Vehicle {
+  id        String   @id @default(cuid())
+  imei      String?  @unique
+  name      String
+  type      String?
+  createdAt DateTime @default(now())
+  rides     Ride[]
+  pings     Ping[]
+}
+
+model Ride {
+  id        String    @id @default(cuid())
+  vehicleId String
+  startedAt DateTime
+  endedAt   DateTime?
+  vehicle   Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  points    Ping[]
+
+  @@index([vehicleId, startedAt])
+}
+
+model Ping {
+  id        String   @id @default(cuid())
+  vehicleId String
+  rideId    String?
+  ts        DateTime
+  lat       Float
+  lon       Float
+  speedKph  Float?
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  ride      Ride?    @relation(fields: [rideId], references: [id], onDelete: SetNull)
+
+  @@index([vehicleId, ts])
+}

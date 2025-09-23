@@ -8,11 +8,15 @@
     "dev": "node app.js"
   },
   "dependencies": {
+    "@prisma/client": "^6.16.2",
     "express": "^4.19.2"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "author": "alphasec",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "prisma": "^6.16.2"
+  }
 }

@@ -1,4 +1,4 @@
-🏍️ Motorbike GPS Tracker
+Motorbike GPS Tracker
 
 A web-based real-time GPS tracker I built to replace Apple AirTags on my motorbike. The app logs live pings from a GPS device, displays routes on an interactive map, and organizes rides by vehicle.
 
@@ -11,7 +11,7 @@ Features
 
 - Backend powered by Node.js + PostgreSQL – Data stored securely with scalable design.
 
-📷 Screenshots
+
 Home Dashboard
 
 Overview with live demo tracker and personal intro
@@ -22,7 +22,7 @@ Vehicle Tracker
 Vehicle page with live ping + most recent ride path
 ![Vehicle Preview](public/images/preview-Vehicles.png)
 
-🛠️ Tech Stack
+Tech Stack
 
 Frontend: React, TypeScript, Tailwind CSS
 
