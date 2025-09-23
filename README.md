@@ -15,12 +15,12 @@ Features
 Home Dashboard
 
 Overview with live demo tracker and personal intro
-[static-site](public/images/preview-Home.png)
+![Home Preview](public/images/preview-Home.png)
 
 Vehicle Tracker
 
 Vehicle page with live ping + most recent ride path
-[static-site](public/images/preview-Vehicles.png)
+![Vehicle Preview](public/images/preview-Vehicles.png)
 
 🛠️ Tech Stack
 
