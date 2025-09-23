@@ -1,8 +1,36 @@
-# nodejs
-A minimal Node.js web application.
+🏍️ Motorbike GPS Tracker
 
-![static-site](public/images/static-site.png)
+A web-based real-time GPS tracker I built to replace Apple AirTags on my motorbike. The app logs live pings from a GPS device, displays routes on an interactive map, and organizes rides by vehicle.
 
-For a step-by-step guide to deploying on [Railway](https://railway.app/?referralCode=alphasec), see [this](https://alphasec.io/how-to-deploy-a-nodejs-app-on-railway/) post, or click the button below.
+Features
+- Live GPS tracking – See your bike’s current location on a map in real time.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/Abo1zu?referralCode=alphasec)
+- Route logging – Store and review past rides with timestamps and coordinates.
+
+- Dark mode UI – Clean, responsive dashboard built with React + Tailwind CSS.
+
+- Backend powered by Node.js + PostgreSQL – Data stored securely with scalable design.
+
+📷 Screenshots
+Home Dashboard
+
+Overview with live demo tracker and personal intro
+[static-site](public/images/preview-Home.png)
+
+Vehicle Tracker
+
+Vehicle page with live ping + most recent ride path
+[static-site](public/images/preview-Vehicles.png)
+
+🛠️ Tech Stack
+
+Frontend: React, TypeScript, Tailwind CSS
+
+Backend: Node.js / Express (forked from [alphasecio/nodejs](https://github.com/alphasecio/nodejs) template
+, then customized for GPS tracking + database integration)
+
+Database: PostgreSQL (Prisma ORM)
+
+Mapping: Leaflet.js
+
+Hosting: Railway
