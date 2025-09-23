@@ -1,14 +1,13 @@
 {
   "name": "tcp-gps-forwarder",
   "version": "1.0.0",
-  "description": "TCP GPS data receiver that forwards to HTTP service",
+  "description": "TCP listener that forwards GPS frames to HTTP /ping",
   "main": "server.js",
   "scripts": {
-    "postinstall": "prisma generate",
-    "migrate:deploy": "prisma migrate deploy",
-    "start": "node app.js",
-    "dev": "node app.js"
+    "start": "node server.js"
   },
-  "dependencies": {"express": "^4.19.2"},
-  "engines": {"node": ">=18.0.0"}
+  "dependencies": {
+    "axios": "^1.7.3"
+  },
+  "engines": { "node": ">=18" }
 }

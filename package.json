@@ -1,22 +1,22 @@
 {
-  "name": "gps-tracker-http",
+  "name": "tracker-nodejs",
+  "private": true,
   "version": "1.0.0",
-  "description": "GPS Tracker HTTP Service - receives data from TCP service",
+  "description": "HTTP API for GPS tracker (Express + Prisma)",
   "main": "app.js",
   "scripts": {
+    "postinstall": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy",
     "start": "node app.js",
-    "dev": "node app.js"
+    "dev": "nodemon app.js"
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
     "express": "^4.19.2"
   },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "author": "alphasec",
-  "license": "MIT",
   "devDependencies": {
-    "prisma": "^6.16.2"
-  }
+    "prisma": "^6.16.2",
+    "nodemon": "^3.1.0"
+  },
+  "engines": { "node": ">=18" }
 }
