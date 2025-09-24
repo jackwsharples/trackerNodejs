@@ -1,12 +1,10 @@
 {
   "name": "tcp-gps-forwarder",
   "version": "1.0.0",
-  "description": "TCP listener that forwards GPS frames to HTTP /ping",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
+  "scripts": { "start": "node server.js" },
   "dependencies": {
+    "express": "^4.19.2",
     "axios": "^1.7.3"
   },
   "engines": { "node": ">=18" }
