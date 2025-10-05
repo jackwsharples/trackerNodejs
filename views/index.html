@@ -161,9 +161,10 @@
 
       <div id="vehicleDetails" class="grid" style="display:none">
         <div class="flex">
-          <button class="btn" id="btnBackVehicles"><i class="lucide lucide-arrow-left"></i> Back</button>
+          <h2 id="vdName" style="margin:0">Vehicle</h2>
+          <button class="btn" id="btnBackVehicles"><i class="lucide lucide-arrow-left"></i>Back</button>
           <div class="spacer"></div>
-          <button class="btn danger" id="btnDeleteVehicle"><i class="lucide lucide-trash-2"></i> Delete</button>
+          <button class="btn danger" id="btnDeleteVehicle"><i class="lucide lucide-trash-2"></i>Delete</button>
         </div>
 
         <div class="two">
@@ -201,25 +202,10 @@
 
     <!-- TESTING -->
     <section id="page-testing" class="grid" style="display:none">
-      <!---->
-      <div class="card">
-        <h3>Idea Board</h3>
-        <div class="stack">
-          <label class="muted">Add an idea</label>
-          <input id="ideaInput" class="btn" placeholder="e.g., Split rides automatically when stopped for > 10 min"/>
-          <div class="row">
-            <button class="btn" id="addIdea">Add</button>
-            <button class="btn" id="clearIdeas">Clear Board</button>
-          </div>
-          <ul id="ideaList" class="stack" style="list-style:none; padding:0; margin-top:4px"></ul>
-        </div>
-      </div>
-
       <div class="card">
         <h3>Raw JSON Pings</h3>
         <pre id="rawJson" class="btn" style="white-space:pre-wrap; overflow:auto; max-height:420px">Loading…</pre>
       </div>
-
       <div class="card">
         <h2>Testing / Production</h2>
         <div class="stack">
@@ -232,7 +218,7 @@
           <div class="row">
             <button class="btn" id="saveApi">Save</button>
             <button class="btn" id="clearApi">Clear</button>
-            <button class="btn danger" id="btnReset">Delete all stored data</button>
+            <button class="btn danger" id="btnReset"></button>
           </div>
           <p class="muted">The UI will call <code>GET /pings</code>, <code>DELETE /pings</code>, and <code>GET /latest</code> (fallbacks to last of /pings). If your reset endpoint is different, tweak <em>resetData()</em>.</p>
         </div>
@@ -258,7 +244,7 @@
     }
     function setTheme(t){ localStorage.setItem('theme', t); applyTheme(t); }
     themeBtn.onclick = ()=> setTheme(getTheme()==='dark' ? 'light' : 'dark');
-    applyTheme(getTheme());
+    applyTheme(getTheme()); 
 
     // ------------------- ROUTER -------------------
     const pages = {
@@ -288,6 +274,78 @@
     toggleEnvBtn.onclick = ()=> { if(getBase()){ setBase(''); } else { apiBaseInput.focus(); } };
     updateEnvLabel();
 
+    
+    // --- NORMALIZATION UTILITIES 
+    function coerceNum(n) {
+      if (n === null || n === undefined) return NaN;
+      const x = typeof n === 'string' ? n.trim() : n;
+      const f = Number(x);
+      return Number.isFinite(f) ? f : NaN;
+    }
+
+    function pick(obj, keys) {
+      for (const k of keys) {
+        if (obj && Object.prototype.hasOwnProperty.call(obj, k)) return obj[k];
+      }
+      return undefined;
+    }
+
+    /**
+     * Accepts a single ping from any backend shape and returns:
+     * { lat:Number, lon:Number, timestamp:String|Number }
+     */
+    function normalizePing(raw) {
+      if (!raw || typeof raw !== 'object') return null;
+
+      // Try common lat/lon key variants
+      const lat = coerceNum(pick(raw, ['lat', 'latitude', 'lat_deg']));
+      const lon = coerceNum(pick(raw, ['lon', 'lng', 'longitude', 'long', 'lon_deg']));
+
+      // Try common time key variants
+      let ts = pick(raw, ['timestamp', 'time', 'ts', 'createdAt', 'created_at', 'updatedAt', 'updated_at', 'date']);
+      // If it's a Prisma Date string, leave it. If number, fix seconds->ms.
+      if (typeof ts === 'number') {
+        // If seconds, convert to ms (e.g., 1695000000 -> 1695000000000)
+        if (ts < 1e12) ts = ts * 1000;
+      } else if (typeof ts === 'string') {
+        // ISO strings are fine; Date can parse them later.
+        ts = ts.trim();
+      } else if (ts != null) {
+        // Fallback to string conversion
+        ts = String(ts);
+      }
+
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || !ts) return null;
+      return { lat, lon, timestamp: ts };
+    }
+
+    /**
+     * Accept any wrapper shape from /pings and return a clean, sorted array.
+     */
+    function normalizePingsResponse(data) {
+      // Unwrap common container shapes
+      const list = Array.isArray(data) ? data
+                : Array.isArray(data?.pings) ? data.pings
+                : Array.isArray(data?.items) ? data.items
+                : Array.isArray(data?.data)  ? data.data
+                : [];
+
+      const norm = list.map(normalizePing).filter(Boolean);
+
+      // Sort by timestamp ascending
+      norm.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+      return norm;
+    }
+
+    /**
+     * Ensure a single /latest object is normalized (with fallback).
+     */
+    function normalizeLatestResponse(data) {
+      const one = normalizePing(data);
+      return one || null;
+    }
+
+
     // ------------------- FETCH HELPERS -------------------
     async function api(path, opts){
       const base = getBase();
@@ -300,17 +358,28 @@
       try{
         const res = await api('/pings');
         const data = await res.json();
-        const list = Array.isArray(data) ? data : (Array.isArray(data?.pings) ? data.pings : []);
+        const list = normalizePingsResponse(data);
         return list;
-      }catch(e){ console.error('getPings failed', e); return []; }
+      }catch(e){
+        console.error('getPings failed', e);
+        return [];
+      }
     }
+
     async function getLatest(){
       try{
         const res = await api('/latest');
-        return await res.json();
-      }catch(e){
+        const data = await res.json();
+        const latest = normalizeLatestResponse(data);
+        if (latest) return latest;
+
+        // Fallback to last of /pings
         const list = await getPings();
-        return list.sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp)).slice(-1)[0] || null;
+        return list.slice(-1)[0] || null;
+      }catch(e){
+        // Fallback if /latest 404s or shape is off
+        const list = await getPings();
+        return list.slice(-1)[0] || null;
       }
     }
     async function resetData(){
@@ -326,15 +395,7 @@
       const doc = { count:list.length, pings:list };
       document.getElementById('rawJson').textContent = JSON.stringify(doc, null, 2);
     }
-
-    // ------------------- IDEAS BOARD (local) -------------------
-    const ideaList = document.getElementById('ideaList');
-    function loadIdeas(){ (JSON.parse(localStorage.getItem('ideas')||'[]')).forEach(addIdeaLi); }
-    function saveIdeas(){ const items = Array.from(document.querySelectorAll('#ideaList li')).map(li=>li.textContent); localStorage.setItem('ideas', JSON.stringify(items)); }
-    function addIdeaLi(text){ const li = document.createElement('li'); li.textContent = text; li.className='btn'; ideaList.appendChild(li); }
-    document.getElementById('addIdea').onclick = ()=>{ const v = document.getElementById('ideaInput').value.trim(); if(!v) return; addIdeaLi(v); saveIdeas(); document.getElementById('ideaInput').value=''; };
-    document.getElementById('clearIdeas').onclick = ()=>{ ideaList.innerHTML=''; saveIdeas(); };
-    loadIdeas();
+    
 
     // ------------------- HOME: LIVE DEMO -------------------
     let demoMap, demoMarker, demoLine, demoTimer;
