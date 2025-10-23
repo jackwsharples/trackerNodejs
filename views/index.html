@@ -109,7 +109,7 @@
       <div class="tabs">
         <div class="tab active" data-route="home">Home</div>
         <div class="tab" data-route="vehicles">Vehicles</div>
-        <div class="tab" data-route="testing">Testing</div>
+        
       </div>
       <div class="spacer"></div>
 
@@ -159,6 +159,7 @@
       <div id="vehicleDetails" class="grid" style="display:none">
         <div class="flex">
           <h2 id="vdName" style="margin:0">Vehicle</h2>
+          <span id="vdType" class="pill" style="margin-left:10px"></span>
           <button class="btn" id="btnBackVehicles"><i class="lucide lucide-arrow-left"></i>Back</button>
           <div class="spacer"></div>
           <button class="btn danger" id="btnDeleteVehicle"><i class="lucide lucide-trash-2"></i>Delete</button>
@@ -200,22 +201,7 @@
     </section>
 
     <!-- TESTING -->
-    <section id="page-testing" class="grid" style="display:none">
-      <div class="card">
-        <h3>Raw JSON Pings</h3>
-        <pre id="rawJson" class="btn" style="white-space:pre-wrap; overflow:auto; max-height:420px">Loading…</pre>
-      </div>
-      <div class="card">
-        <h2>Testing / Production</h2>
-        <div class="stack">
-          <div class="row">
-            <button class="btn danger" id="btnReset"></button>
-          </div>
-          <p class="muted">Reset will clear all stored pings and rides.</p>
-        </div>
-      </div>
-      
-    </section>
+    
   </main>
 
   <footer>
@@ -240,15 +226,13 @@
     // ------------------- ROUTER -------------------
     const pages = {
       home: document.getElementById('page-home'),
-      vehicles: document.getElementById('page-vehicles'),
-      testing: document.getElementById('page-testing')
+      vehicles: document.getElementById('page-vehicles')
     };
     const tabs = Array.from(document.querySelectorAll('.tab'));
     function setRoute(name){
       tabs.forEach(t=>t.classList.toggle('active', t.dataset.route===name));
       Object.entries(pages).forEach(([k,el])=> el.style.display = (k===name)?'grid':'none');
       if(name==='vehicles'){ renderVehicles(); }
-      if(name==='testing'){ refreshRaw(); }
       if(name==='home'){ initDemoMap(); }
     }
     tabs.forEach(t=> t.addEventListener('click', ()=> setRoute(t.dataset.route)));
@@ -381,19 +365,10 @@
         return list.slice(-1)[0] || null;
       }
     }
-    async function resetData(){
-      try{ await api('/pings', { method:'DELETE' }); }
-      catch(e){ try{ await api('/reset', { method:'POST' }); } catch(e2){ alert('Reset failed. Ensure DELETE /pings or POST /reset exists.'); return; } }
-      alert('All stored data cleared');
-      refreshRaw(); drawTrackMap(true); drawLiveMap(); drawLifetimeMap();
-    }
-    document.getElementById('btnReset').onclick = resetData;
+    // reset functionality removed
+    // testing reset removed
 
-    async function refreshRaw(){
-      const list = await getPings(getPingsLimit());
-      const doc = { count:list.length, pings:list };
-      document.getElementById('rawJson').textContent = JSON.stringify(doc, null, 2);
-    }
+    // testing view removed
     
 
     // ------------------- HOME: LIVE DEMO -------------------
@@ -448,8 +423,8 @@
     function seedVehicles(){
       if(localStorage.getItem('vehicles')) return;
       const defaults = [
-        { id: 'veh-crf300l', name: 'CRF300L', type: 'Motorbike', img: '/public/images/Crf300.png' },
-        { id: 'veh-car', name: 'My Car', type: 'Car', img: '/public/images/crossTrek.png' }
+        { id: 'veh-crf300l', name: 'CRF300L', type: 'Motorbike', img: '/images/Crf300.png' },
+        { id: 'veh-car', name: 'My Car', type: 'Car', img: '/images/crossTrek.png' }
       ];
       localStorage.setItem('vehicles', JSON.stringify(defaults));
     }
@@ -471,7 +446,7 @@
       const card = document.createElement('div');
       card.className = 'vehicle-card';
       const img = document.createElement('img');
-      img.src = v.img || '/public/images/moto.png';
+      img.src = v.img || ((v.type||'').toLowerCase().includes('car') ? '/images/crossTrek.png' : '/images/Crf300.png');
       img.alt = v.name;
       const body = document.createElement('div');
       body.className = 'vc-body';
@@ -496,7 +471,7 @@
       const name = prompt('Vehicle name?', 'New Vehicle');
       if(!name) return;
       const type = prompt('Type (Motorbike/Car/etc.)', 'Motorbike') || 'Motorbike';
-      const img = type.toLowerCase().includes('car') ? '/public/images/car.png' : '/public/images/moto.png';
+      const img = type.toLowerCase().includes('car') ? '/images/crossTrek.png' : '/images/Crf300.png';
       const list = getVehicles();
       list.push({ id: baseId, name, type, img });
       setVehicles(list);
