@@ -118,10 +118,7 @@
         <span id="themeLabel">Dark</span>
       </button>
 
-      <div class="chip" style="margin-left:10px">
-        <span id="envLabel">ENV: same-origin</span>
-        <button id="toggleEnv">switch</button>
-      </div>
+      <!-- removed ENV switch -->
     </div>
   </header>
 
@@ -167,43 +164,34 @@
           <button class="btn danger" id="btnDeleteVehicle"><i class="lucide lucide-trash-2"></i>Delete</button>
         </div>
 
-        <div class="two">
+          <div class="two">
           <div class="card">
             <div class="flex">
-              <div>
-                <h2 id="vdName" style="margin:0">Vehicle</h2>
-                <span id="vdType" class="label">Type</span>
-              </div>
+              <h3 style="margin:0">Live Ping</h3>
+              <div class="spacer"></div>
+              <button class="btn" id="refreshLiveBtn"><i class="lucide lucide-rotate-cw"></i> Refresh</button>
             </div>
-            <div style="margin-top:10px">
-              <!--Removed the image section due to backend support for images-->
-              <img id="vdImg" alt="" >
-            </div>
+            <div id="liveMap" class="map sm" style="margin-top:10px"></div>
           </div>
 
           <div class="card">
-            <h3 style="margin:0 0 8px 0">Live Ping</h3>
-            <div id="liveMap" class="map sm"></div>
+            <div class="flex">
+              <h3 style="margin:0">Most Recent Ride</h3>
+              <div class="spacer"></div>
+              <label class="muted" for="rideSelect">Past rides:</label>
+              <select id="rideSelect" class="btn"></select>
+              <button class="btn" id="refreshRideBtn"><i class="lucide lucide-rotate-cw"></i> Refresh</button>
+            </div>
+            <div id="trackMap" class="map sm" style="margin-top:10px"></div>
           </div>
-        </div>
-
-        <div class="card">
-          <div class="flex">
-            <h3 style="margin:0">Tracker (Most recent ride)</h3>
-            <div class="spacer"></div>
-            <label class="muted" for="limitInput" style="margin-right:6px">Points limit</label>
-            <input id="limitInput" class="btn" type="number" min="50" max="5000" step="50" style="width:110px" />
-            <label class="muted" for="rideSelect" style="margin-left:10px">Past rides:</label>
-            <select id="rideSelect" class="btn"></select>
-            <button class="btn" id="refreshRideBtn"><i class="lucide lucide-rotate-cw"></i> Refresh</button>
-          </div>
-          <div id="trackMap" class="map" style="margin-top:10px"></div>
         </div>
 
         <div class="card">
           <div class="flex">
             <h3 style="margin:0">Lifetime Track</h3>
             <div class="spacer"></div>
+            <label class="muted" for="limitInput" style="margin-right:6px">Points limit</label>
+            <input id="limitInput" class="btn" type="number" min="50" max="5000" step="50" style="width:110px" />
             <button class="btn" id="refreshLifetimeBtn"><i class="lucide lucide-rotate-cw"></i> Refresh</button>
           </div>
           <div id="lifetimeMap" class="map" style="margin-top:10px"></div>
@@ -221,17 +209,9 @@
         <h2>Testing / Production</h2>
         <div class="stack">
           <div class="row">
-            <div class="stack" style="min-width:280px; flex:1">
-              <label class="muted">API Base URL (optional). Empty = same origin</label>
-              <input id="apiBase" class="btn" placeholder="https://your-http-service.up.railway.app" />
-            </div>
-          </div>
-          <div class="row">
-            <button class="btn" id="saveApi">Save</button>
-            <button class="btn" id="clearApi">Clear</button>
             <button class="btn danger" id="btnReset"></button>
           </div>
-          <p class="muted">The UI will call <code>GET /pings</code>, <code>DELETE /pings</code>, and <code>GET /latest</code> (fallbacks to last of /pings). If your reset endpoint is different, tweak <em>resetData()</em>.</p>
+          <p class="muted">Reset will clear all stored pings and rides.</p>
         </div>
       </div>
       
@@ -273,17 +253,7 @@
     }
     tabs.forEach(t=> t.addEventListener('click', ()=> setRoute(t.dataset.route)));
 
-    // ------------------- ENV / API BASE -------------------
-    const apiBaseInput = document.getElementById('apiBase');
-    const envLabel = document.getElementById('envLabel');
-    const toggleEnvBtn = document.getElementById('toggleEnv');
-    function getBase(){ return localStorage.getItem('apiBase') || ''; }
-    function setBase(v){ if(v) localStorage.setItem('apiBase', v); else localStorage.removeItem('apiBase'); updateEnvLabel(); }
-    function updateEnvLabel(){ envLabel.textContent = 'ENV: ' + (getBase()||'same-origin'); apiBaseInput.value = getBase(); }
-    document.getElementById('saveApi').onclick = ()=> setBase(apiBaseInput.value.trim());
-    document.getElementById('clearApi').onclick = ()=> setBase('');
-    toggleEnvBtn.onclick = ()=> { if(getBase()){ setBase(''); } else { apiBaseInput.focus(); } };
-    updateEnvLabel();
+    // ENV/API base removed; always same-origin
 
     
     // --- NORMALIZATION UTILITIES 
@@ -359,9 +329,8 @@
 
     // ------------------- FETCH HELPERS -------------------
     async function api(path, opts){
-      const base = getBase();
-      const url = base ? base.replace(/\/$/,'') + path : path;
-      const res = await fetch(url, opts);
+      // Always same-origin
+      const res = await fetch(path, opts);
       if(!res.ok) throw new Error('HTTP '+res.status);
       return res;
     }
@@ -378,10 +347,15 @@
       return n;
     }
 
-    async function getPings(){
+    const TRACK_DEFAULT_LIMIT = 1500; // used for recent ride view
+
+    async function getPings(limit){
       try{
-        const lim = getPingsLimit();
-        const res = await api('/pings?limit='+encodeURIComponent(lim));
+        const lim = (typeof limit === 'number' && Number.isFinite(limit))
+          ? Math.max(50, Math.min(5000, Math.floor(limit)))
+          : null;
+        const path = lim ? ('/pings?limit=' + encodeURIComponent(lim)) : '/pings';
+        const res = await api(path);
         const data = await res.json();
         const list = normalizePingsResponse(data);
         return list;
@@ -398,12 +372,12 @@
         const latest = normalizeLatestResponse(data);
         if (latest) return latest;
 
-        // Fallback to last of /pings
-        const list = await getPings();
+        // Fallback to last of /pings (small window)
+        const list = await getPings(50);
         return list.slice(-1)[0] || null;
       }catch(e){
         // Fallback if /latest 404s or shape is off
-        const list = await getPings();
+        const list = await getPings(50);
         return list.slice(-1)[0] || null;
       }
     }
@@ -416,7 +390,7 @@
     document.getElementById('btnReset').onclick = resetData;
 
     async function refreshRaw(){
-      const list = await getPings();
+      const list = await getPings(getPingsLimit());
       const doc = { count:list.length, pings:list };
       document.getElementById('rawJson').textContent = JSON.stringify(doc, null, 2);
     }
@@ -546,12 +520,10 @@
 
     const vdName = document.getElementById('vdName');
     const vdType = document.getElementById('vdType');
-    const vdImg  = document.getElementById('vdImg');
-    const photoInput = document.getElementById('photoInput');
-    const savePhotoBtn = document.getElementById('savePhotoBtn');
     const rideSelect = document.getElementById('rideSelect');
     const refreshRideBtn = document.getElementById('refreshRideBtn');
     const refreshLifetimeBtn = document.getElementById('refreshLifetimeBtn');
+    const refreshLiveBtn = document.getElementById('refreshLiveBtn');
     const limitInput = document.getElementById('limitInput');
 
     let liveMap, liveMarker;
@@ -563,7 +535,7 @@
       currentVehicle = v;
       vdName.textContent = v.name;
       vdType.textContent = v.type || '';
-      vdImg.src = v.img || '/public/images/moto.png';
+      // image removed
 
       vehiclesListView.style.display = 'none';
       vehicleDetailsView.style.display = 'grid';
@@ -578,25 +550,7 @@
       }, 0);
     }
 
-    // Photo upload -> save as base64 to localStorage
-    savePhotoBtn.onclick = async ()=>{
-      const file = photoInput.files?.[0];
-      if(!file || !currentVehicle) return alert('Pick a file first');
-      const reader = new FileReader();
-      reader.onload = ()=>{
-        const list = getVehicles();
-        const idx = list.findIndex(v=> v.id===currentVehicle.id);
-        if(idx>=0){
-          list[idx].img = reader.result; // base64
-          setVehicles(list);
-          currentVehicle = list[idx];
-          vdImg.src = currentVehicle.img;
-          renderVehicles(); // update list thumbs
-          alert('Saved photo!');
-        }
-      };
-      reader.readAsDataURL(file);
-    };
+    // Photo upload removed
 
     // Live map
     function initLiveMap(){
@@ -604,12 +558,15 @@
       liveMap = L.map('liveMap');
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {subdomains:'abcd',maxZoom:20}).addTo(liveMap);
       liveMap.setView([36.214,-81.668], 14);
+      if (refreshLiveBtn) refreshLiveBtn.onclick = ()=> drawLiveMap();
     }
     async function drawLiveMap(){
       const last = await getLatest();
       if(!last || !Number.isFinite(last.lat) || !Number.isFinite(last.lon)) return;
       if(liveMarker) liveMap.removeLayer(liveMarker);
-      liveMarker = L.circleMarker([last.lat,last.lon], { radius:8 }).addTo(liveMap).bindPopup(`Live ping<br>${new Date(last.timestamp).toLocaleString()}`);
+      liveMarker = L.circleMarker([last.lat,last.lon], { radius:8, color:'#22d3ee', weight:2, fill:true, fillColor:'#22d3ee', fillOpacity:0.8 })
+        .addTo(liveMap)
+        .bindPopup(`Live ping<br>${new Date(last.timestamp).toLocaleString()}`);
       liveMap.setView([last.lat,last.lon], 16);
     }
 
@@ -621,10 +578,6 @@
       trackMap.setView([36.214,-81.668], 14);
       rideSelect.onchange = ()=> drawTrackMap(false);
       refreshRideBtn.onclick = ()=> drawTrackMap(true);
-      if(limitInput){
-        limitInput.value = String(getPingsLimit());
-        limitInput.onchange = ()=>{ setPingsLimit(limitInput.value); drawTrackMap(true); drawLifetimeMap(); };
-      }
     }
     function segmentByTime(points, gapSeconds=600){
       const out=[]; let cur=[]; let prev=null;
@@ -643,7 +596,8 @@
       trackMarkers=[];
     }
     async function drawTrackMap(rebuildDropdown){
-      const list = await getPings();
+      // Use a stable limit for the recent ride view so 10-min segmentation works consistently
+      const list = await getPings(TRACK_DEFAULT_LIMIT);
       const pts = list.filter(p=> Number.isFinite(p.lat) && Number.isFinite(p.lon)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
       const groups = segmentByTime(pts, 600);
       if(rebuildDropdown){
@@ -681,9 +635,14 @@
       L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {subdomains:'abcd',maxZoom:20}).addTo(lifetimeMap);
       lifetimeMap.setView([36.214,-81.668], 13);
       if(refreshLifetimeBtn){ refreshLifetimeBtn.onclick = ()=> drawLifetimeMap(); }
+      if(limitInput){
+        limitInput.value = String(getPingsLimit());
+        limitInput.onchange = ()=>{ setPingsLimit(limitInput.value); drawLifetimeMap(); };
+      }
     }
     async function drawLifetimeMap(){
-      const list = await getPings();
+      // Lifetime is bounded by the user-selected points limit to avoid lag
+      const list = await getPings(getPingsLimit());
       const pts = list.filter(p=> Number.isFinite(p.lat) && Number.isFinite(p.lon)).sort((a,b)=> new Date(a.timestamp)-new Date(b.timestamp));
       if(lifetimeLine){ lifetimeMap.removeLayer(lifetimeLine); lifetimeLine=null; }
       if(!pts.length) return;
