@@ -87,7 +87,11 @@ app.get('/pings', async (req, res) => {
   const { vehicleId, limit } = req.query;
   const take = Math.min(parseInt(limit || '500', 10), 5000);
   const where = vehicleId ? { vehicleId } : undefined;
-  const pings = await prisma.ping.findMany({ where, orderBy: { ts: 'asc' }, take });
+
+  // Fetch most-recent first, then reverse to ascending for the client
+  const latestFirst = await prisma.ping.findMany({ where, orderBy: { ts: 'desc' }, take });
+  const pings = latestFirst.reverse();
+
   res.json({
     count: pings.length,
     pings: pings.map(p => ({ lat: p.lat, lon: p.lon, timestamp: p.ts, vehicleId: p.vehicleId }))
