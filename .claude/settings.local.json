@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check \"c:/Users/jackw/OneDrive/Desktop/tracker/trackerNodejs-1/app.js\")"
+    ]
+  }
+}
