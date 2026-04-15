@@ -308,7 +308,7 @@
         <div class="stat-label">Speed</div>
         <div class="stat-big">
           <span id="statSpeed">--</span>
-          <span class="stat-unit">km/h</span>
+          <span class="stat-unit">mph</span>
         </div>
         <div class="stat-sub" id="statSpeedSub">Last recorded</div>
         <div class="progress">
@@ -433,8 +433,8 @@ function shortDate(dateStr) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + time;
 }
 
-function haversineKm(lat1, lon1, lat2, lon2) {
-  var R = 6371;
+function haversineMi(lat1, lon1, lat2, lon2) {
+  var R = 3958.8;
   var dLat = (lat2 - lat1) * Math.PI / 180;
   var dLon = (lon2 - lon1) * Math.PI / 180;
   var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
@@ -443,10 +443,10 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-function rideDistanceKm(points) {
+function rideDistanceMi(points) {
   var d = 0;
   for (var i = 1; i < points.length; i++) {
-    d += haversineKm(points[i-1].lat, points[i-1].lon, points[i].lat, points[i].lon);
+    d += haversineMi(points[i-1].lat, points[i-1].lon, points[i].lat, points[i].lon);
   }
   return d;
 }
@@ -557,17 +557,17 @@ async function loadLastRide() {
     latestLatLng = lastCoord;
 
     // Distance
-    var distKm = rideDistanceKm(pts);
-    var distStr = distKm > 0.05 ? distKm.toFixed(1) + ' km' : '';
+    var distMi = rideDistanceMi(pts);
+    var distStr = distMi > 0.05 ? distMi.toFixed(1) + ' mi' : '';
 
     // Duration
     var endTs = data.endedAt || lastPt.ts;
     var dur = new Date(endTs) - new Date(data.startedAt);
     var durStr = formatDuration(dur);
 
-    // Avg speed from points that have it
+    // Avg speed from points that have it (convert kph -> mph)
     var speeds = pts.map(function(p) { return p.speedKph; }).filter(function(s) { return s != null && s > 0; });
-    var avgSpeedStr = speeds.length ? Math.round(speeds.reduce(function(a,b){return a+b;},0)/speeds.length) + ' km/h avg' : '';
+    var avgSpeedStr = speeds.length ? Math.round(speeds.reduce(function(a,b){return a+b;},0)/speeds.length * 0.621371) + ' mph avg' : '';
 
     document.getElementById('mapMeta').textContent = pts.length + ' pts' + (distStr ? ' \u00b7 ' + distStr : '');
     document.getElementById('statRidePts').textContent = pts.length + ' pts' + (distStr ? ' \u00b7 ' + distStr : '');
@@ -603,10 +603,10 @@ async function loadLatest() {
 
     // Speed
     if (d.speedKph != null) {
-      var spd = Math.round(d.speedKph);
+      var spd = Math.round(d.speedKph * 0.621371);
       document.getElementById('statSpeed').textContent = spd;
       document.getElementById('statSpeedSub').textContent = shortDate(d.timestamp);
-      document.getElementById('speedFill').style.width = Math.min(100, (spd / 200) * 100) + '%';
+      document.getElementById('speedFill').style.width = Math.min(100, (spd / 130) * 100) + '%';
     } else {
       document.getElementById('statSpeed').textContent = '--';
       document.getElementById('statSpeedSub').textContent = 'No speed data from device';
