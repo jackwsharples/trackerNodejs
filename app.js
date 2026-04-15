@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- home (serve views/index.html or public/index.html if present) ---
-app.get('/', (req, res) => {
+app.get('/', (_req, res) => {
   const candidates = [
     path.join(__dirname, 'views', 'index.html'),
     path.join(__dirname, 'public', 'index.html')
@@ -57,7 +57,6 @@ app.post('/ping', async (req, res) => {
   try {
     const { lat, lon, timestamp, imei, speed } = req.body || {};
     if (lat == null || lon == null) {
-      // ignore debug/noise payloads (keeps TCP forwarder happy)
       return res.status(200).json({ status: 'ignored' });
     }
     const v = await ensureVehicle(imei);
@@ -82,19 +81,18 @@ app.post('/ping', async (req, res) => {
   }
 });
 
-// ---------- Read: GET /pings (for your maps) ----------
+// ---------- Read: GET /pings ----------
 app.get('/pings', async (req, res) => {
   const { vehicleId, limit } = req.query;
   const take = Math.min(parseInt(limit || '500', 10), 5000);
   const where = vehicleId ? { vehicleId } : undefined;
 
-  // Fetch most-recent first, then reverse to ascending for the client
   const latestFirst = await prisma.ping.findMany({ where, orderBy: { ts: 'desc' }, take });
   const pings = latestFirst.reverse();
 
   res.json({
     count: pings.length,
-    pings: pings.map(p => ({ lat: p.lat, lon: p.lon, timestamp: p.ts, vehicleId: p.vehicleId }))
+    pings: pings.map(p => ({ lat: p.lat, lon: p.lon, timestamp: p.ts, speedKph: p.speedKph, vehicleId: p.vehicleId }))
   });
 });
 
@@ -104,7 +102,61 @@ app.get('/latest', async (req, res) => {
   const where = vehicleId ? { vehicleId } : undefined;
   const latest = await prisma.ping.findFirst({ where, orderBy: { ts: 'desc' } });
   if (!latest) return res.json(null);
-  res.json({ lat: latest.lat, lon: latest.lon, timestamp: latest.ts, vehicleId: latest.vehicleId });
+  res.json({ lat: latest.lat, lon: latest.lon, timestamp: latest.ts, speedKph: latest.speedKph, vehicleId: latest.vehicleId });
+});
+
+// ---------- Last ride with full points ----------
+app.get('/last-ride', async (req, res) => {
+  try {
+    const latestRide = await prisma.ride.findFirst({
+      orderBy: { startedAt: 'desc' },
+      include: {
+        points: {
+          orderBy: { ts: 'asc' },
+          select: { lat: true, lon: true, ts: true, speedKph: true }
+        }
+      }
+    });
+    if (!latestRide) return res.json(null);
+    res.json({
+      id: latestRide.id,
+      startedAt: latestRide.startedAt,
+      endedAt: latestRide.endedAt,
+      points: latestRide.points,
+      pointCount: latestRide.points.length
+    });
+  } catch (err) {
+    console.error('GET /last-ride error', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ---------- Rides list ----------
+app.get('/rides', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit || '20', 10), 100);
+    const rides = await prisma.ride.findMany({
+      orderBy: { startedAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        startedAt: true,
+        endedAt: true,
+        _count: { select: { points: true } }
+      }
+    });
+    res.json({
+      rides: rides.map(r => ({
+        id: r.id,
+        startedAt: r.startedAt,
+        endedAt: r.endedAt,
+        pointCount: r._count.points
+      }))
+    });
+  } catch (err) {
+    console.error('GET /rides error', err);
+    res.status(500).json({ error: 'server_error' });
+  }
 });
 
 // ---------- Forever mode: all rides as GeoJSON ----------
@@ -126,7 +178,7 @@ app.get('/vehicles/:id/forever', async (req, res) => {
   res.json({ type: 'FeatureCollection', features });
 });
 
-// ---------- Reset (your UI’s reset button) ----------
+// ---------- Reset ----------
 app.delete('/pings', async (_req, res) => {
   await prisma.ping.deleteMany({});
   await prisma.ride.deleteMany({});
@@ -147,4 +199,3 @@ app.listen(PORT, '0.0.0.0', () => {
 // Graceful shutdown
 process.on('SIGINT', async () => { await prisma.$disconnect(); process.exit(0); });
 process.on('SIGTERM', async () => { await prisma.$disconnect(); process.exit(0); });
-
